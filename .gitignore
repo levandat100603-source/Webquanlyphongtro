@@ -1,0 +1,10 @@
+# Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env
+
+# Backend (Laravel)
+backend/vendor/
+backend/.env
+backend/storage/*.key
+backend/public/storage
