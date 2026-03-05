@@ -18,7 +18,7 @@ class User extends Authenticatable
         'phone',
         'address',
     ];
-
+    protected $table = 'users';
     protected $hidden = [
         'password',
         'remember_token',
