@@ -14,6 +14,7 @@ Route::post('/login', [AuthController::class, 'login']);
 // Public room listing
 Route::get('/rooms', [RoomController::class, 'index']);
 Route::get('/rooms/{id}', [RoomController::class, 'show']);
+Route::get('/users', [UserController::class, 'index']);
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -39,7 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Users - Admin only
     Route::middleware('role:admin')->group(function () {
-        Route::get('/users', [UserController::class, 'index']);
+        //Route::get('/users', [UserController::class, 'index']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
     });
     
