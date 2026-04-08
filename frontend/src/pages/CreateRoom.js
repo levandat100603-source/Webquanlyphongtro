@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { roomService } from '../api/services';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const defaultCenter = [10.8231, 106.6297];
 const cityCoordinates = {
@@ -17,6 +18,29 @@ const cityCoordinates = {
   'nha trang': [12.2388, 109.1967],
 };
 
+const vietnamBounds = [
+  [8.3, 102.0],
+  [23.6, 110.5],
+];
+
+const clampToVietnamBounds = (coordinates) => {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    return [10.8231, 106.6297];
+  }
+
+  const latitude = Number(coordinates[0]);
+  const longitude = Number(coordinates[1]);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return [10.8231, 106.6297];
+  }
+
+  return [
+    Math.max(vietnamBounds[0][0], Math.min(vietnamBounds[1][0], latitude)),
+    Math.max(vietnamBounds[0][1], Math.min(vietnamBounds[1][1], longitude)),
+  ];
+};
+
 const pickerIcon = L.divIcon({
   className: 'location-picker-marker-wrap',
   html: '<span class="location-picker-marker"></span>',
@@ -26,10 +50,38 @@ const pickerIcon = L.divIcon({
 
 const normalizeCity = (city) => String(city || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
+const normalizeLongitude = (lng) => {
+  const value = Number(lng);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return ((((value + 180) % 360) + 360) % 360) - 180;
+};
+
+const normalizeLatitude = (lat) => {
+  const value = Number(lat);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return Math.max(-90, Math.min(90, value));
+};
+
+const normalizeCoordinates = (lat, lng) => {
+  const normalizedLat = normalizeLatitude(lat);
+  const normalizedLng = normalizeLongitude(lng);
+  if (normalizedLat === null || normalizedLng === null) {
+    return null;
+  }
+  return clampToVietnamBounds([normalizedLat, normalizedLng]);
+};
+
 const MapClickHandler = ({ onPick }) => {
   useMapEvents({
     click(event) {
-      onPick([event.latlng.lat, event.latlng.lng]);
+      const next = normalizeCoordinates(event.latlng.lat, event.latlng.lng);
+      if (next) {
+        onPick(next);
+      }
     },
   });
 
@@ -37,6 +89,7 @@ const MapClickHandler = ({ onPick }) => {
 };
 
 const CreateRoom = () => {
+  const { t, language } = useLanguage();
   const MAX_IMAGES = 12;
   const MAX_IMAGE_SIZE_MB = 1;
   const navigate = useNavigate();
@@ -54,8 +107,24 @@ const CreateRoom = () => {
   const [coordinates, setCoordinates] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const previewUrlsRef = useRef([]);
+  const fileInputRef = useRef(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const syncNativeFileInput = (files) => {
+    if (!fileInputRef.current) {
+      return;
+    }
+
+    try {
+      const dataTransfer = new DataTransfer();
+      (files || []).forEach((file) => dataTransfer.items.add(file));
+      fileInputRef.current.files = dataTransfer.files;
+    } catch (error) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -66,41 +135,63 @@ const CreateRoom = () => {
 
   useEffect(() => {
     return () => {
-      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     };
-  }, [imagePreviews]);
+  }, []);
 
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files || []);
 
     if (files.length === 0) {
-      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current = [];
       setSelectedFiles([]);
       setImagePreviews([]);
+      syncNativeFileInput([]);
       return;
     }
 
     if (files.length > MAX_IMAGES) {
-      setError(`Chỉ được chọn tối đa ${MAX_IMAGES} ảnh.`);
+      setError(t('createRoom.maxImagesError', { max: MAX_IMAGES }));
       e.target.value = '';
       return;
     }
 
     const oversize = files.find((file) => file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024);
     if (oversize) {
-      setError(`Mỗi ảnh tối đa ${MAX_IMAGE_SIZE_MB}MB.`);
+      setError(t('createRoom.maxImageSizeError', { size: MAX_IMAGE_SIZE_MB }));
       e.target.value = '';
       return;
     }
 
     try {
       setError('');
-      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+      previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      const nextPreviews = files.map((file) => URL.createObjectURL(file));
+      previewUrlsRef.current = nextPreviews;
       setSelectedFiles(files);
-      setImagePreviews(files.map((file) => URL.createObjectURL(file)));
+      setImagePreviews(nextPreviews);
+      syncNativeFileInput(files);
     } catch (err) {
-      setError('Đọc ảnh thất bại. Vui lòng chọn lại ảnh.');
+      setError(t('createRoom.readImageFailed'));
     }
+  };
+
+  const handleRemoveSelectedImage = (indexToRemove) => {
+    setSelectedFiles((prev) => {
+      const nextFiles = prev.filter((_, index) => index !== indexToRemove);
+      syncNativeFileInput(nextFiles);
+      return nextFiles;
+    });
+    setImagePreviews((prev) => {
+      const toRemove = prev[indexToRemove];
+      if (toRemove) {
+        URL.revokeObjectURL(toRemove);
+      }
+      const nextPreviews = prev.filter((_, index) => index !== indexToRemove);
+      previewUrlsRef.current = nextPreviews;
+      return nextPreviews;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -121,8 +212,11 @@ const CreateRoom = () => {
       submitData.append('status', 'available');
 
       if (Array.isArray(coordinates) && coordinates.length === 2) {
-        submitData.append('latitude', String(coordinates[0]));
-        submitData.append('longitude', String(coordinates[1]));
+        const next = normalizeCoordinates(coordinates[0], coordinates[1]);
+        if (next) {
+          submitData.append('latitude', String(next[0]));
+          submitData.append('longitude', String(next[1]));
+        }
       }
 
       const utilities = formData.utilities ? formData.utilities.split(',').map((u) => u.trim()).filter(Boolean) : [];
@@ -136,9 +230,9 @@ const CreateRoom = () => {
       
       const createdRoom = await roomService.createRoom(submitData);
       if (createdRoom?.id) {
-        localStorage.setItem('myRoomsNotice', `Đăng phòng thành công: ${createdRoom.title} (ID: ${createdRoom.id})`);
+        localStorage.setItem('myRoomsNotice', t('createRoom.createSuccessWithId', { title: createdRoom.title, id: createdRoom.id }));
       } else {
-        localStorage.setItem('myRoomsNotice', 'Đăng phòng thành công.');
+        localStorage.setItem('myRoomsNotice', t('createRoom.createSuccess'));
       }
       navigate('/my-rooms');
     } catch (err) {
@@ -149,17 +243,17 @@ const CreateRoom = () => {
       if (errors && typeof errors === 'object') {
         const firstKey = Object.keys(errors)[0];
         const firstMsg = Array.isArray(errors[firstKey]) ? errors[firstKey][0] : '';
-        setError(firstMsg || 'Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.');
+        setError(firstMsg || t('createRoom.invalidData'));
       } else if (status === 401) {
-        setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        setError(t('createRoom.sessionExpired'));
       } else if (status === 403) {
-        setError('Bạn không có quyền đăng phòng.');
+        setError(t('createRoom.noPermission'));
       } else if (status === 413) {
-        setError('Dung lượng ảnh quá lớn. Vui lòng giảm kích thước ảnh.');
+        setError(t('createRoom.imageTooLarge'));
       } else if (message) {
         setError(message);
       } else {
-        setError('Tạo phòng thất bại. Vui lòng thử lại.');
+        setError(t('createRoom.createFailed'));
       }
     } finally {
       setLoading(false);
@@ -168,13 +262,13 @@ const CreateRoom = () => {
 
   return (
     <div className="form-container form-container-wide">
-      <h2 className="form-title">Đăng phòng trọ mới</h2>
+      <h2 className="form-title">{t('createRoom.title')}</h2>
       
       {error && <div className="error-message">{error}</div>}
       
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label className="form-label">Tiêu đề</label>
+          <label className="form-label">{t('createRoom.fieldTitle')}</label>
           <input
             type="text"
             name="title"
@@ -186,7 +280,7 @@ const CreateRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Mô tả</label>
+          <label className="form-label">{t('createRoom.fieldDescription')}</label>
           <textarea
             name="description"
             className="form-textarea"
@@ -198,7 +292,7 @@ const CreateRoom = () => {
 
         <div className="form-grid-2">
           <div className="form-group">
-            <label className="form-label">Địa chỉ</label>
+            <label className="form-label">{t('createRoom.fieldAddress')}</label>
             <input
               type="text"
               name="address"
@@ -210,7 +304,7 @@ const CreateRoom = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Quận/Huyện</label>
+            <label className="form-label">{t('createRoom.fieldDistrict')}</label>
             <input
               type="text"
               name="district"
@@ -223,7 +317,7 @@ const CreateRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Thành phố</label>
+          <label className="form-label">{t('createRoom.fieldCity')}</label>
           <input
             type="text"
             name="city"
@@ -235,13 +329,18 @@ const CreateRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Chọn vị trí phòng trên bản đồ</label>
+          <label className="form-label">{t('createRoom.mapTitle')}</label>
           <div className="location-picker-shell">
             <MapContainer
-              center={coordinates || cityCoordinates[normalizeCity(formData.city)] || defaultCenter}
+              center={clampToVietnamBounds(coordinates || cityCoordinates[normalizeCity(formData.city)] || defaultCenter)}
               zoom={13}
               scrollWheelZoom
               className="location-picker-map"
+              maxBounds={vietnamBounds}
+              maxBoundsViscosity={1.0}
+              minZoom={5}
+              maxZoom={18}
+              worldCopyJump={false}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -257,25 +356,28 @@ const CreateRoom = () => {
                     dragend: (event) => {
                       const marker = event.target;
                       const position = marker.getLatLng();
-                      setCoordinates([position.lat, position.lng]);
+                      const next = normalizeCoordinates(position.lat, position.lng);
+                      if (next) {
+                        setCoordinates(next);
+                      }
                     },
                   }}
                 />
               )}
             </MapContainer>
             <p className="location-picker-note">
-              Bấm trực tiếp lên bản đồ để đặt pin. Kéo pin để chỉnh lại vị trí chính xác hơn.
+              {t('createRoom.mapHint')}
             </p>
             <div className="location-picker-coordinates">
-              <span>Latitude: {coordinates ? coordinates[0].toFixed(6) : 'Chưa chọn'}</span>
-              <span>Longitude: {coordinates ? coordinates[1].toFixed(6) : 'Chưa chọn'}</span>
+              <span>{t('createRoom.latitude')}: {coordinates ? coordinates[0].toFixed(6) : t('createRoom.notSelected')}</span>
+              <span>{t('createRoom.longitude')}: {coordinates ? coordinates[1].toFixed(6) : t('createRoom.notSelected')}</span>
             </div>
           </div>
         </div>
 
         <div className="form-grid-3">
           <div className="form-group">
-            <label className="form-label">Giá (VNĐ/tháng)</label>
+            <label className="form-label">{t('createRoom.fieldPrice', { currency: language === 'en' ? 'VND' : 'VNĐ', period: t('createRoom.perMonth') })}</label>
             <input
               type="number"
               name="price"
@@ -288,7 +390,7 @@ const CreateRoom = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Diện tích (m²)</label>
+            <label className="form-label">{t('createRoom.fieldArea')}</label>
             <input
               type="number"
               name="area"
@@ -302,7 +404,7 @@ const CreateRoom = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Sức chứa (người)</label>
+            <label className="form-label">{t('createRoom.fieldCapacity')}</label>
             <input
               type="number"
               name="capacity"
@@ -316,32 +418,43 @@ const CreateRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Tiện ích (phân cách bằng dấu phẩy)</label>
+          <label className="form-label">{t('createRoom.fieldUtilities')}</label>
           <input
             type="text"
             name="utilities"
             className="form-input"
             value={formData.utilities}
             onChange={handleChange}
-            placeholder="Ví dụ: Wifi, Máy lạnh, Tủ lạnh, Máy giặt"
+            placeholder={t('createRoom.utilitiesPlaceholder')}
           />
         </div>
 
         <div className="form-group">
-          <label className="form-label">Hình ảnh phòng ({`tối đa ${MAX_IMAGES} ảnh, mỗi ảnh <= ${MAX_IMAGE_SIZE_MB}MB`})</label>
+          <label className="form-label">{t('createRoom.fieldImages', { max: MAX_IMAGES, size: MAX_IMAGE_SIZE_MB })}</label>
           <input
+            ref={fileInputRef}
             type="file"
             className="form-input"
             accept="image/*"
             multiple
             onChange={handleImageChange}
           />
+          <small className="helper-link">{t('createRoom.selectedCount', { count: selectedFiles.length })}</small>
 
           {imagePreviews.length > 0 && (
             <div className="image-preview-grid">
               {imagePreviews.map((image, index) => (
-                <div key={`preview-${index}`} className="image-preview-item">
+                <div key={`preview-${index}`} className="image-preview-item" style={{ position: 'relative' }}>
                   <img src={image} alt={`Preview ${index + 1}`} />
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    style={{ position: 'absolute', top: 8, right: 8, padding: '0.2rem 0.45rem' }}
+                    onClick={() => handleRemoveSelectedImage(index)}
+                    aria-label={t('createRoom.removeSelectedImageAria', { index: index + 1 })}
+                  >
+                    X
+                  </button>
                 </div>
               ))}
             </div>
@@ -349,7 +462,7 @@ const CreateRoom = () => {
         </div>
 
         <button type="submit" className="form-button" disabled={loading}>
-          {loading ? 'Đang tạo...' : 'Đăng phòng'}
+          {loading ? t('createRoom.creating') : t('createRoom.submit')}
         </button>
       </form>
     </div>

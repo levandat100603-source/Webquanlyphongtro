@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { bookingService, authService } from '../api/services';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const BookingList = () => {
+  const { t, language } = useLanguage();
+  const locale = language === 'en' ? 'en-US' : 'vi-VN';
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -44,12 +47,12 @@ const BookingList = () => {
       await bookingService.updateBooking(id, status);
       fetchBookings();
     } catch (error) {
-      alert('Cập nhật trạng thái thất bại');
+      alert(t('bookingList.updateFailed'));
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa đặt phòng này?')) {
+    if (!window.confirm(t('bookingList.confirmCancel'))) {
       return;
     }
 
@@ -57,7 +60,7 @@ const BookingList = () => {
       await bookingService.deleteBooking(id);
       setBookings(bookings.filter(booking => booking.id !== id));
     } catch (error) {
-      alert('Xóa đặt phòng thất bại');
+      alert(t('bookingList.deleteFailed'));
     }
   };
 
@@ -74,11 +77,11 @@ const BookingList = () => {
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'pending': return 'Chờ duyệt';
-      case 'approved': return 'Đã duyệt';
-      case 'rejected': return 'Từ chối';
-      case 'cancelled': return 'Đã hủy';
-      case 'completed': return 'Hoàn thành';
+      case 'pending': return t('bookingList.statusPending');
+      case 'approved': return t('bookingList.statusApproved');
+      case 'rejected': return t('bookingList.statusRejected');
+      case 'cancelled': return t('bookingList.statusCancelled');
+      case 'completed': return t('bookingList.statusCompleted');
       default: return status;
     }
   };
@@ -98,7 +101,7 @@ const BookingList = () => {
       .map((line) => {
         const separatorIndex = line.indexOf(':');
         if (separatorIndex < 0) {
-          return { label: 'Thong tin', value: line };
+          return { label: t('bookingList.infoLabel'), value: line };
         }
 
         return {
@@ -112,7 +115,7 @@ const BookingList = () => {
     return (
       <div className="container">
         <div className="page-header">
-          <h1 className="page-title">Danh sách đặt phòng</h1>
+          <h1 className="page-title">{t('bookingList.title')}</h1>
         </div>
         <div className="skeleton-table">
           {Array.from({ length: 6 }).map((_, index) => (
@@ -131,17 +134,17 @@ const BookingList = () => {
   return (
     <div className="container">
       <div className="page-header">
-        <h1 className="page-title">Danh sách đặt phòng</h1>
+        <h1 className="page-title">{t('bookingList.title')}</h1>
       </div>
 
       {bookings.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
-          <h3 className="empty-state-title">Không có đặt phòng nào</h3>
+          <h3 className="empty-state-title">{t('bookingList.emptyTitle')}</h3>
           <p className="empty-state-description">
             {canManageBookings 
-              ? 'Hiện chưa có yêu cầu đặt phòng. Các yêu cầu sẽ xuất hiện tại đây.'
-              : 'Bạn chưa đặt phòng nào. Hãy khám phá các phòng trọ có sẵn.'}
+              ? t('bookingList.emptyManager')
+              : t('bookingList.emptyUser')}
           </p>
         </div>
       ) : (
@@ -150,12 +153,12 @@ const BookingList = () => {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Phòng</th>
-                <th>Người đặt</th>
-                <th>Ngày bắt đầu</th>
-                <th>Giá</th>
-                <th>Trạng thái</th>
-                <th>Hành động</th>
+                <th>{t('bookingList.colRoom')}</th>
+                <th>{t('bookingList.colBooker')}</th>
+                <th>{t('bookingList.colStartDate')}</th>
+                <th>{t('bookingList.colPrice')}</th>
+                <th>{t('bookingList.colStatus')}</th>
+                <th>{t('bookingList.colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -164,8 +167,8 @@ const BookingList = () => {
                   <td>{booking.id}</td>
                   <td>{booking.room?.title}</td>
                   <td>{booking.user?.name}</td>
-                  <td>{new Date(booking.start_date).toLocaleDateString('vi-VN')}</td>
-                  <td>{Number(booking.total_price).toLocaleString('vi-VN')} đ</td>
+                  <td>{new Date(booking.start_date).toLocaleDateString(locale)}</td>
+                  <td>{Number(booking.total_price).toLocaleString(locale)} {t('bookingList.currencyShort')}</td>
                   <td>
                     <span className={`badge ${getStatusBadgeClass(booking.status)}`}>
                       {getStatusText(booking.status)}
@@ -178,16 +181,16 @@ const BookingList = () => {
                         <button 
                           onClick={() => handleStatusUpdate(booking.id, 'approved')}
                           className="btn btn-success btn-sm"
-                          aria-label={`Duyệt đặt phòng ${booking.id}`}
+                          aria-label={t('bookingList.approveAria', { id: booking.id })}
                         >
-                          Duyệt
+                          {t('bookingList.approve')}
                         </button>
                         <button 
                           onClick={() => handleStatusUpdate(booking.id, 'rejected')}
                           className="btn btn-danger btn-sm"
-                          aria-label={`Từ chối đặt phòng ${booking.id}`}
+                          aria-label={t('bookingList.rejectAria', { id: booking.id })}
                         >
-                          Từ chối
+                          {t('bookingList.reject')}
                         </button>
                       </>
                     )}
@@ -195,27 +198,27 @@ const BookingList = () => {
                       <button 
                         onClick={() => handleStatusUpdate(booking.id, 'completed')}
                         className="btn btn-primary btn-sm"
-                        aria-label={`Hoàn thành đặt phòng ${booking.id}`}
+                        aria-label={t('bookingList.completeAria', { id: booking.id })}
                       >
-                        Hoàn thành
+                        {t('bookingList.complete')}
                       </button>
                     )}
                     {booking.status === 'pending' && booking.user_id === user.id && (
                       <button 
                         onClick={() => handleDelete(booking.id)}
                         className="btn btn-danger btn-sm"
-                        aria-label={`Hủy đặt phòng ${booking.id}`}
+                        aria-label={t('bookingList.cancelAria', { id: booking.id })}
                       >
-                        Hủy
+                        {t('bookingList.cancel')}
                       </button>
                     )}
                     {canManageBookings && booking.notes && (
                       <button
                         onClick={() => setSelectedBooking(booking)}
                         className="btn btn-neutral btn-sm"
-                        aria-label={`Xem form khách gửi cho đơn ${booking.id}`}
+                        aria-label={t('bookingList.viewFormAria', { id: booking.id })}
                       >
-                        Xem form
+                        {t('bookingList.viewForm')}
                       </button>
                     )}
                     </div>
@@ -231,21 +234,21 @@ const BookingList = () => {
         <div className="booking-modal-overlay" onClick={() => setSelectedBooking(null)}>
           <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
             <div className="booking-modal-header">
-              <h4>Thong tin khach gui</h4>
+              <h4>{t('bookingList.modalTitle')}</h4>
               <button
                 type="button"
                 className="booking-modal-close"
                 onClick={() => setSelectedBooking(null)}
-                aria-label="Dong thong tin dat phong"
+                aria-label={t('bookingList.closeModal')}
               >
                 ×
               </button>
             </div>
 
             <div className="booking-modal-meta">
-              <p><strong>Don:</strong> #{selectedBooking.id}</p>
-              <p><strong>Phong:</strong> {selectedBooking.room?.title || 'N/A'}</p>
-              <p><strong>Nguoi dat:</strong> {selectedBooking.user?.name || 'N/A'}</p>
+              <p><strong>{t('bookingList.orderLabel')}:</strong> #{selectedBooking.id}</p>
+              <p><strong>{t('bookingList.roomLabel')}:</strong> {selectedBooking.room?.title || 'N/A'}</p>
+              <p><strong>{t('bookingList.bookerLabel')}:</strong> {selectedBooking.user?.name || 'N/A'}</p>
             </div>
 
             <div className="booking-request-details">

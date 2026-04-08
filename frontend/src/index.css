@@ -127,6 +127,19 @@ textarea:focus-visible {
   gap: 1rem;
 }
 
+.navbar-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.navbar-quick-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .navbar-brand {
   font-family: 'Sora', sans-serif;
   font-size: 1.18rem;
@@ -151,17 +164,20 @@ textarea:focus-visible {
   list-style: none;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
+  flex-wrap: nowrap;
 }
 
 .navbar-link {
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
-  font-size: 0.94rem;
+  font-size: 0.92rem;
   font-weight: 500;
-  padding: 0.62rem 0.8rem;
+  padding: 0.58rem 0.66rem;
   border-radius: 999px;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  line-height: 1.1;
 }
 
 .navbar-link:hover {
@@ -176,13 +192,14 @@ textarea:focus-visible {
   border: none;
   text-decoration: none;
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   border-radius: 999px;
-  padding: 0.62rem 1rem;
+  padding: 0.58rem 0.92rem;
   cursor: pointer;
   color: #fff;
   background: linear-gradient(120deg, var(--primary), #3f8eff);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
 }
 
 .navbar-button:hover {
@@ -208,8 +225,30 @@ textarea:focus-visible {
   cursor: pointer;
 }
 
+.navbar-menu li {
+  display: inline-flex;
+  align-items: center;
+}
+
 .navbar-icon-button:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.navbar-language-toggle {
+  width: 42px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.navbar-language-toggle:hover {
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .form-container {
@@ -284,6 +323,11 @@ textarea:focus-visible {
   outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--ring);
+}
+
+input[type='password']::-ms-reveal,
+input[type='password']::-ms-clear {
+  display: none;
 }
 
 .form-button {
@@ -658,22 +702,68 @@ textarea:focus-visible {
 
 .error-message,
 .success-message {
-  padding: 0.85rem 1rem;
-  border-radius: 12px;
+  position: relative;
+  padding: 0.92rem 1rem 0.92rem 1.15rem;
+  border-radius: 14px;
   margin-bottom: 1rem;
   font-size: 0.92rem;
+  line-height: 1.45;
+  border-left: 4px solid transparent;
+  box-shadow: 0 8px 20px rgba(16, 36, 63, 0.08);
 }
 
 .error-message {
-  color: #9f2727;
-  background: #ffe4e4;
-  border: 1px solid #ffcbcb;
+  color: #8f1f1f;
+  background: linear-gradient(135deg, #fff2f2, #ffe5e5);
+  border: 1px solid #ffcfd1;
+  border-left-color: #d64545;
 }
 
 .success-message {
-  color: #14633b;
-  background: #def8ea;
-  border: 1px solid #c3f0d8;
+  color: #145f3a;
+  background: linear-gradient(135deg, #ecfbf2, #e0f7e9);
+  border: 1px solid #c6efd8;
+  border-left-color: #1f9d62;
+}
+
+.alert {
+  position: relative;
+  padding: 0.95rem 1rem 0.95rem 1.15rem;
+  border-radius: 14px;
+  margin-bottom: 1rem;
+  font-size: 0.93rem;
+  line-height: 1.45;
+  border: 1px solid transparent;
+  border-left: 4px solid transparent;
+  box-shadow: 0 8px 20px rgba(16, 36, 63, 0.08);
+}
+
+.alert-info {
+  color: #114d85;
+  background: linear-gradient(135deg, #edf6ff, #e4f1ff);
+  border-color: #c7e1ff;
+  border-left-color: #0b63f3;
+}
+
+.alert-warning {
+  color: #7d4e00;
+  background: linear-gradient(135deg, #fff8e9, #fff2d5);
+  border-color: #f3ddad;
+  border-left-color: #c88a12;
+}
+
+.alert-danger {
+  color: #8f1f1f;
+  background: linear-gradient(135deg, #fff2f2, #ffe5e5);
+  border-color: #ffcfd1;
+  border-left-color: #d64545;
+}
+
+.alert-success {
+  color: #145f3a;
+  background: linear-gradient(135deg, #ecfbf2, #e0f7e9);
+  border-color: #c6efd8;
+  border-left-color: #1f9d62;
 }
 
 .home-hero {
@@ -1225,6 +1315,33 @@ body.booking-modal-open .room-gallery-thumbs-nav {
   font-size: 0.98rem;
 }
 
+.room-location-map-shell {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #dce9f9;
+  background: #f8fbff;
+}
+
+.room-location-map {
+  width: 100%;
+  height: 280px;
+}
+
+.room-location-note {
+  margin-top: 0.55rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+[data-theme='dark'] .room-location-map-shell {
+  background: #111d2e;
+  border-color: #2a3f5d;
+}
+
+[data-theme='dark'] .room-location-note {
+  color: #c7d8ee;
+}
+
 @media (max-width: 768px) {
   .room-gallery-nav {
     width: 42px;
@@ -1372,6 +1489,23 @@ body.booking-modal-open .room-gallery-thumbs-nav {
 
 .booking-modal-close:hover {
   background: #e8f1ff;
+}
+
+.dialog-subtitle {
+  color: var(--text-muted);
+  margin-bottom: 0.85rem;
+}
+
+.dialog-note-input {
+  min-height: 110px;
+}
+
+.dialog-actions {
+  margin-top: 0.9rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .booking-guest {
@@ -1687,6 +1821,10 @@ body.booking-modal-open .room-gallery-thumbs-nav {
   background: #18304f;
   border-color: #2f567f;
   color: #d5e5fb;
+}
+
+[data-theme='dark'] .dialog-subtitle {
+  color: #b5c6de;
 }
 
 [data-theme='dark'] .booking-modal-meta,
@@ -2146,6 +2284,24 @@ button.active-filters-badge.active {
   gap: 0.3rem;
 }
 
+.map-popup .btn {
+  font-weight: 700;
+}
+
+.map-popup .btn-primary {
+  background: #0b63f3;
+  color: #ffffff !important;
+}
+
+.map-popup .btn-primary:hover {
+  background: #0851c5;
+}
+
+.map-popup .btn-neutral {
+  background: #dbe8fb;
+  color: #17385d;
+}
+
 .infinite-sentinel {
   width: 100%;
   height: 1px;
@@ -2338,6 +2494,38 @@ button.active-filters-badge.active {
   color: var(--accent);
 }
 
+[data-theme='dark'] .error-message,
+[data-theme='dark'] .success-message,
+[data-theme='dark'] .alert {
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme='dark'] .error-message,
+[data-theme='dark'] .alert-danger {
+  color: #ffcece;
+  background: linear-gradient(135deg, #3a161a, #4a1e22);
+  border-color: #734148;
+}
+
+[data-theme='dark'] .success-message,
+[data-theme='dark'] .alert-success {
+  color: #cbf3dc;
+  background: linear-gradient(135deg, #113126, #174135);
+  border-color: #2d614f;
+}
+
+[data-theme='dark'] .alert-info {
+  color: #cfe6ff;
+  background: linear-gradient(135deg, #11273f, #173454);
+  border-color: #335c89;
+}
+
+[data-theme='dark'] .alert-warning {
+  color: #ffe2b3;
+  background: linear-gradient(135deg, #3d2b13, #4c3719);
+  border-color: #7b6137;
+}
+
 [data-theme='dark'] .map-canvas {
   border-color: #2a3f5d;
 }
@@ -2397,6 +2585,10 @@ button.active-filters-badge.active {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .navbar-left {
+    gap: 0.5rem;
   }
 
   .navbar-menu {

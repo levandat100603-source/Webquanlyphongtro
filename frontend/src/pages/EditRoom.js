@@ -4,6 +4,7 @@ import { roomService } from '../api/services';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const defaultCenter = [10.8231, 106.6297];
 const cityCoordinates = {
@@ -17,6 +18,29 @@ const cityCoordinates = {
   'nha trang': [12.2388, 109.1967],
 };
 
+const vietnamBounds = [
+  [8.3, 102.0],
+  [23.6, 110.5],
+];
+
+const clampToVietnamBounds = (coordinates) => {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    return [10.8231, 106.6297];
+  }
+
+  const latitude = Number(coordinates[0]);
+  const longitude = Number(coordinates[1]);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return [10.8231, 106.6297];
+  }
+
+  return [
+    Math.max(vietnamBounds[0][0], Math.min(vietnamBounds[1][0], latitude)),
+    Math.max(vietnamBounds[0][1], Math.min(vietnamBounds[1][1], longitude)),
+  ];
+};
+
 const pickerIcon = L.divIcon({
   className: 'location-picker-marker-wrap',
   html: '<span class="location-picker-marker"></span>',
@@ -26,10 +50,38 @@ const pickerIcon = L.divIcon({
 
 const normalizeCity = (city) => String(city || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
+const normalizeLongitude = (lng) => {
+  const value = Number(lng);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return ((((value + 180) % 360) + 360) % 360) - 180;
+};
+
+const normalizeLatitude = (lat) => {
+  const value = Number(lat);
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return Math.max(-90, Math.min(90, value));
+};
+
+const normalizeCoordinates = (lat, lng) => {
+  const normalizedLat = normalizeLatitude(lat);
+  const normalizedLng = normalizeLongitude(lng);
+  if (normalizedLat === null || normalizedLng === null) {
+    return null;
+  }
+  return clampToVietnamBounds([normalizedLat, normalizedLng]);
+};
+
 const MapClickHandler = ({ onPick }) => {
   useMapEvents({
     click(event) {
-      onPick([event.latlng.lat, event.latlng.lng]);
+      const next = normalizeCoordinates(event.latlng.lat, event.latlng.lng);
+      if (next) {
+        onPick(next);
+      }
     },
   });
 
@@ -53,6 +105,8 @@ const resolveImageUrl = (value) => {
 };
 
 const EditRoom = () => {
+  const { t, language } = useLanguage();
+  const locale = language === 'en' ? 'en-US' : 'vi-VN';
   const { id } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -92,10 +146,13 @@ const EditRoom = () => {
       });
       setExistingImages(Array.isArray(room.images) ? room.images : []);
       if (Number.isFinite(Number(room.latitude)) && Number.isFinite(Number(room.longitude))) {
-        setCoordinates([Number(room.latitude), Number(room.longitude)]);
+        const next = normalizeCoordinates(room.latitude, room.longitude);
+        if (next) {
+          setCoordinates(next);
+        }
       }
     } catch (error) {
-      setError('Không thể tải thông tin phòng');
+      setError(t('editRoom.loadFailed'));
     } finally {
       setFetching(false);
     }
@@ -122,14 +179,14 @@ const EditRoom = () => {
     const files = Array.from(e.target.files || []);
 
     if (existingImages.length + files.length > MAX_IMAGES) {
-      setError(`Tổng số ảnh tối đa là ${MAX_IMAGES}. Vui lòng xóa bớt ảnh cũ hoặc chọn ít ảnh hơn.`);
+      setError(t('editRoom.maxImagesExceeded', { max: MAX_IMAGES }));
       e.target.value = '';
       return;
     }
 
     const oversize = files.find((file) => file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024);
     if (oversize) {
-      setError(`Mỗi ảnh tối đa ${MAX_IMAGE_SIZE_MB}MB.`);
+      setError(t('editRoom.imageSizeLimitExceeded', { size: MAX_IMAGE_SIZE_MB }));
       e.target.value = '';
       return;
     }
@@ -162,8 +219,11 @@ const EditRoom = () => {
       submitData.append('status', formData.status);
 
       if (Array.isArray(coordinates) && coordinates.length === 2) {
-        submitData.append('latitude', String(coordinates[0]));
-        submitData.append('longitude', String(coordinates[1]));
+        const next = normalizeCoordinates(coordinates[0], coordinates[1]);
+        if (next) {
+          submitData.append('latitude', String(next[0]));
+          submitData.append('longitude', String(next[1]));
+        }
       }
 
       const utilities = formData.utilities
@@ -184,25 +244,35 @@ const EditRoom = () => {
       await roomService.updateRoom(id, submitData);
       navigate('/my-rooms');
     } catch (err) {
-      setError('Cập nhật phòng thất bại. Vui lòng thử lại.');
+      const message = err?.response?.data?.message;
+      const errors = err?.response?.data?.errors;
+      if (errors && typeof errors === 'object') {
+        const firstKey = Object.keys(errors)[0];
+        const firstMsg = Array.isArray(errors[firstKey]) ? errors[firstKey][0] : '';
+        setError(firstMsg || t('editRoom.invalidData'));
+      } else if (message) {
+        setError(message);
+      } else {
+        setError(t('editRoom.updateFailed'));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   if (fetching) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">{t('common.loading')}</div>;
   }
 
   return (
     <div className="form-container form-container-wide">
-      <h2 className="form-title">Chỉnh sửa thông tin phòng</h2>
+      <h2 className="form-title">{t('editRoom.title')}</h2>
       
       {error && <div className="error-message">{error}</div>}
       
       <form onSubmit={handleSubmit}>
         <div className="form-group">
-          <label className="form-label">Tiêu đề</label>
+          <label className="form-label">{t('editRoom.fieldTitle')}</label>
           <input
             type="text"
             name="title"
@@ -214,7 +284,7 @@ const EditRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Mô tả</label>
+          <label className="form-label">{t('editRoom.fieldDescription')}</label>
           <textarea
             name="description"
             className="form-textarea"
@@ -226,7 +296,7 @@ const EditRoom = () => {
 
         <div className="form-grid-2">
           <div className="form-group">
-            <label className="form-label">Địa chỉ</label>
+            <label className="form-label">{t('editRoom.fieldAddress')}</label>
             <input
               type="text"
               name="address"
@@ -238,7 +308,7 @@ const EditRoom = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Quận/Huyện</label>
+            <label className="form-label">{t('editRoom.fieldDistrict')}</label>
             <input
               type="text"
               name="district"
@@ -251,7 +321,7 @@ const EditRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Thành phố</label>
+          <label className="form-label">{t('editRoom.fieldCity')}</label>
           <input
             type="text"
             name="city"
@@ -263,13 +333,18 @@ const EditRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Chọn vị trí phòng trên bản đồ</label>
+          <label className="form-label">{t('editRoom.mapTitle')}</label>
           <div className="location-picker-shell">
             <MapContainer
-              center={coordinates || cityCoordinates[normalizeCity(formData.city)] || defaultCenter}
+              center={clampToVietnamBounds(coordinates || cityCoordinates[normalizeCity(formData.city)] || defaultCenter)}
               zoom={13}
               scrollWheelZoom
               className="location-picker-map"
+              maxBounds={vietnamBounds}
+              maxBoundsViscosity={1.0}
+              minZoom={5}
+              maxZoom={18}
+              worldCopyJump={false}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -285,25 +360,28 @@ const EditRoom = () => {
                     dragend: (event) => {
                       const marker = event.target;
                       const position = marker.getLatLng();
-                      setCoordinates([position.lat, position.lng]);
+                      const next = normalizeCoordinates(position.lat, position.lng);
+                      if (next) {
+                        setCoordinates(next);
+                      }
                     },
                   }}
                 />
               )}
             </MapContainer>
             <p className="location-picker-note">
-              Bấm lên bản đồ để đặt pin. Kéo pin để chỉnh chính xác hơn.
+              {t('editRoom.mapHint')}
             </p>
             <div className="location-picker-coordinates">
-              <span>Latitude: {coordinates ? coordinates[0].toFixed(6) : 'Chưa chọn'}</span>
-              <span>Longitude: {coordinates ? coordinates[1].toFixed(6) : 'Chưa chọn'}</span>
+              <span>{t('editRoom.latitude')}: {coordinates ? coordinates[0].toFixed(6) : t('editRoom.notSelected')}</span>
+              <span>{t('editRoom.longitude')}: {coordinates ? coordinates[1].toFixed(6) : t('editRoom.notSelected')}</span>
             </div>
           </div>
         </div>
 
         <div className="form-grid-3">
           <div className="form-group">
-            <label className="form-label">Giá (VNĐ/tháng)</label>
+            <label className="form-label">{t('editRoom.fieldPrice', { currency: language === 'en' ? 'VND' : 'VNĐ', period: t('editRoom.perMonth') })}</label>
             <input
               type="number"
               name="price"
@@ -316,7 +394,7 @@ const EditRoom = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Diện tích (m²)</label>
+            <label className="form-label">{t('editRoom.fieldArea')}</label>
             <input
               type="number"
               name="area"
@@ -330,7 +408,7 @@ const EditRoom = () => {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Sức chứa (người)</label>
+            <label className="form-label">{t('editRoom.fieldCapacity')}</label>
             <input
               type="number"
               name="capacity"
@@ -344,7 +422,7 @@ const EditRoom = () => {
         </div>
 
         <div className="form-group">
-          <label className="form-label">Trạng thái</label>
+          <label className="form-label">{t('editRoom.fieldStatus')}</label>
           <select
             name="status"
             className="form-select"
@@ -352,31 +430,31 @@ const EditRoom = () => {
             onChange={handleChange}
             required
           >
-            <option value="available">Còn trống</option>
-            <option value="rented">Đã cho thuê</option>
-            <option value="maintenance">Bảo trì</option>
+            <option value="available">{t('editRoom.statusAvailable')}</option>
+            <option value="rented">{t('editRoom.statusRented')}</option>
+            <option value="maintenance">{t('editRoom.statusMaintenance')}</option>
           </select>
         </div>
 
         <div className="form-group">
-          <label className="form-label">Tiện ích (phân cách bằng dấu phẩy)</label>
+          <label className="form-label">{t('editRoom.fieldUtilities')}</label>
           <input
             type="text"
             name="utilities"
             className="form-input"
             value={formData.utilities}
             onChange={handleChange}
-            placeholder="Ví dụ: Wifi, Máy lạnh, Tủ lạnh, Máy giặt"
+            placeholder={t('editRoom.utilitiesPlaceholder')}
           />
         </div>
 
         <div className="form-group">
-          <label className="form-label">Ảnh hiện có</label>
+          <label className="form-label">{t('editRoom.existingImages')}</label>
           {existingImages.length > 0 ? (
             <div className="image-preview-grid">
               {existingImages.map((image, index) => (
                 <div key={`existing-${index}`} className="image-preview-item" style={{ position: 'relative' }}>
-                  <img src={resolveImageUrl(image)} alt={`Ảnh phòng ${index + 1}`} />
+                  <img src={resolveImageUrl(image)} alt={t('editRoom.roomImageAlt', { index: index + 1 })} />
                   <button
                     type="button"
                     className="btn btn-danger"
@@ -389,12 +467,12 @@ const EditRoom = () => {
               ))}
             </div>
           ) : (
-            <p className="muted-text">Phòng này chưa có ảnh.</p>
+            <p className="muted-text">{t('editRoom.noImages')}</p>
           )}
         </div>
 
         <div className="form-group">
-          <label className="form-label">Thêm ảnh mới ({`tối đa ${MAX_IMAGES} ảnh tổng, mỗi ảnh <= ${MAX_IMAGE_SIZE_MB}MB`})</label>
+          <label className="form-label">{t('editRoom.addNewImages', { max: MAX_IMAGES, size: MAX_IMAGE_SIZE_MB })}</label>
           <input
             type="file"
             className="form-input"
@@ -407,7 +485,7 @@ const EditRoom = () => {
             <div className="image-preview-grid">
               {newImagePreviews.map((image, index) => (
                 <div key={`new-preview-${index}`} className="image-preview-item">
-                  <img src={image} alt={`Ảnh mới ${index + 1}`} />
+                  <img src={image} alt={t('editRoom.newImageAlt', { index: index + 1 })} />
                 </div>
               ))}
             </div>
@@ -415,7 +493,7 @@ const EditRoom = () => {
         </div>
 
         <button type="submit" className="form-button" disabled={loading}>
-          {loading ? 'Đang cập nhật...' : 'Cập nhật'}
+          {loading ? t('editRoom.updating') : t('editRoom.submit')}
         </button>
       </form>
     </div>

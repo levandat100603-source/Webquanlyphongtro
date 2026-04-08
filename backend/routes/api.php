@@ -7,9 +7,17 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\InfoController;
+use App\Http\Controllers\Api\OwnerRegistrationRequestController;
+
+// Health check
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok']);
+});
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
+Route::post('/register/verify', [AuthController::class, 'verifyRegistration']);
+Route::post('/register/resend-code', [AuthController::class, 'resendRegistrationCode']);
 Route::post('/login', [AuthController::class, 'login']);
 
 // Public room listing
@@ -46,7 +54,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin')->group(function () {
         //Route::get('/users', [UserController::class, 'index']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
+        Route::get('/owner-registration-requests', [OwnerRegistrationRequestController::class, 'index']);
+        Route::put('/owner-registration-requests/{id}/review', [OwnerRegistrationRequestController::class, 'review']);
     });
+
+    Route::post('/owner-registration-requests', [OwnerRegistrationRequestController::class, 'store']);
+    Route::get('/owner-registration-requests/my-latest', [OwnerRegistrationRequestController::class, 'myLatest']);
+    Route::post('/owner-registration-requests/{id}/seen-rejected-notice', [OwnerRegistrationRequestController::class, 'markRejectedNoticeSeen']);
+    Route::post('/owner-registration-requests/{id}/seen-approved-notice', [OwnerRegistrationRequestController::class, 'markApprovedNoticeSeen']);
     
     Route::get('/users/{id}', [UserController::class, 'show']);
     Route::put('/users/{id}', [UserController::class, 'update']);

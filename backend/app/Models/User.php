@@ -53,4 +53,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Booking::class, 'user_id');
     }
+
+    public function ownerRegistrationRequests()
+    {
+        return $this->hasMany(OwnerRegistrationRequest::class, 'user_id');
+    }
 }

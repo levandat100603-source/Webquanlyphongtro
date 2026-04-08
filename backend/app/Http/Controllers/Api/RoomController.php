@@ -4,12 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Room;
+use App\Services\CloudinaryImageService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
 class RoomController extends Controller
 {
+    public function __construct(private readonly CloudinaryImageService $cloudinaryImageService)
+    {
+    }
+
     public function index(Request $request)
     {
         $query = Room::query()
@@ -240,23 +245,37 @@ class RoomController extends Controller
             return [];
         }
 
-        $uploadDir = public_path('uploads/rooms');
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
         $paths = [];
         foreach ($request->file('image_files') as $file) {
             if (!$file || !$file->isValid()) {
                 continue;
             }
 
-            $filename = now()->format('YmdHis') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
-            $file->move($uploadDir, $filename);
-            $paths[] = '/uploads/rooms/' . $filename;
+            if ($this->cloudinaryImageService->isConfigured()) {
+                $uploadedUrl = $this->cloudinaryImageService->uploadPath($file->getRealPath(), $file->getClientOriginalName());
+                if ($uploadedUrl) {
+                    $paths[] = $uploadedUrl;
+                }
+                continue;
+            }
+
+            $paths[] = $this->storeImageLocally($file);
         }
 
-        return $paths;
+        return array_values(array_filter($paths));
+    }
+
+    private function storeImageLocally(UploadedFile $file): string
+    {
+        $uploadDir = public_path('uploads/rooms');
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $filename = now()->format('YmdHis') . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
+        $file->move($uploadDir, $filename);
+
+        return '/uploads/rooms/' . $filename;
     }
 
     private function resolveCoordinates(Request $request, ?Room $room = null): array
@@ -266,8 +285,8 @@ class RoomController extends Controller
 
         if (is_numeric($latitude) && is_numeric($longitude)) {
             return [
-                'latitude' => round((float) $latitude, 7),
-                'longitude' => round((float) $longitude, 7),
+                'latitude' => round($this->normalizeLatitude((float) $latitude), 7),
+                'longitude' => round($this->normalizeLongitude((float) $longitude), 7),
             ];
         }
 
@@ -337,7 +356,7 @@ class RoomController extends Controller
             try {
                 $response = Http::withHeaders([
                     'Accept' => 'application/json',
-                    'User-Agent' => 'RoomRental/1.0 (+https://localhost)',
+                    'User-Agent' => 'BigSix/1.0 (+https://bigsix.com)',
                 ])->timeout(8)->get($provider['url'], $provider['params']);
 
                 if (!$response->ok()) {
@@ -374,5 +393,15 @@ class RoomController extends Controller
         }
 
         return null;
+    }
+
+    private function normalizeLatitude(float $latitude): float
+    {
+        return max(8.3, min(23.6, $latitude));
+    }
+
+    private function normalizeLongitude(float $longitude): float
+    {
+        return max(102.0, min(110.5, $longitude));
     }
 }

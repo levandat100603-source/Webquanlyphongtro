@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FiHome, FiMapPin, FiMaximize2, FiUsers, FiPhone, FiShare2, FiMessageCircle, FiCopy, FiLink, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { roomService, bookingService, authService } from '../api/services';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const apiBaseUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 const backendBaseUrl = apiBaseUrl.replace(/\/api\/?$/, '');
@@ -16,6 +20,47 @@ const resolveImageUrl = (value) => {
   }
   return src.startsWith('/') ? `${backendBaseUrl}${src}` : `${backendBaseUrl}/${src}`;
 };
+
+const vietnamBounds = [
+  [8.3, 102.0],
+  [23.6, 110.5],
+];
+
+const clampToVietnamBounds = (coordinates) => {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    return [10.8231, 106.6297];
+  }
+
+  const latitude = Number(coordinates[0]);
+  const longitude = Number(coordinates[1]);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return [10.8231, 106.6297];
+  }
+
+  return [
+    Math.max(vietnamBounds[0][0], Math.min(vietnamBounds[1][0], latitude)),
+    Math.max(vietnamBounds[0][1], Math.min(vietnamBounds[1][1], longitude)),
+  ];
+};
+
+const getStatusColorClass = (status) => {
+  switch (status) {
+    case 'available':
+      return 'available';
+    case 'rented':
+      return 'rented';
+    default:
+      return 'maintenance';
+  }
+};
+
+const createMarkerIcon = (status) => L.divIcon({
+  className: 'map-marker-wrap',
+  html: `<span class="map-marker map-marker-${getStatusColorClass(status)}"></span>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
 
 const formatDateDisplay = (date) => {
   const day = String(date.getDate()).padStart(2, '0');
@@ -58,6 +103,8 @@ const parseFlexibleDisplayDateToIso = (displayDate) => {
 };
 
 const RoomDetail = () => {
+  const { t, language } = useLanguage();
+  const locale = language === 'en' ? 'en-US' : 'vi-VN';
   const { id } = useParams();
   const navigate = useNavigate();
   const [room, setRoom] = useState(null);
@@ -152,19 +199,19 @@ const RoomDetail = () => {
 
   const buildBookingNotes = () => {
     const detailLines = [
-      `Ngay bat dau: ${startDateInput || formatIsoDateForDisplay(bookingData.start_date)}`,
-      `So thang thue: ${bookingData.rental_months}`,
-      `Ngay ket thuc: ${getContractEndDateDisplay()}`,
-      `Ho ten: ${bookingData.full_name}`,
-      `So dien thoai: ${bookingData.phone}`,
-      `Thuong tru: ${bookingData.permanent_address}`,
-      `CCCD: ${bookingData.cccd}`,
-      `So nguoi: ${bookingData.number_of_people}`,
-      `So xe: ${bookingData.number_of_vehicles}`,
+      `${t('roomDetail.buildingNotesStartDate')}: ${startDateInput || formatIsoDateForDisplay(bookingData.start_date)}`,
+      `${t('roomDetail.buildingNotesMonths')}: ${bookingData.rental_months}`,
+      `${t('roomDetail.buildingNotesEndDate')}: ${getContractEndDateDisplay()}`,
+      `${t('roomDetail.buildingNotesFullName')}: ${bookingData.full_name}`,
+      `${t('roomDetail.buildingNotesPhone')}: ${bookingData.phone}`,
+      `${t('roomDetail.buildingNotesAddress')}: ${bookingData.permanent_address}`,
+      `${t('roomDetail.buildingNotesCCCD')}: ${bookingData.cccd}`,
+      `${t('roomDetail.buildingNotesPeople')}: ${bookingData.number_of_people}`,
+      `${t('roomDetail.buildingNotesVehicles')}: ${bookingData.number_of_vehicles}`,
     ];
 
     if (bookingData.notes.trim()) {
-      detailLines.push(`Ghi chu: ${bookingData.notes.trim()}`);
+      detailLines.push(`${t('roomDetail.buildingNotesNotes')}: ${bookingData.notes.trim()}`);
     }
 
     return detailLines.join('\n');
@@ -187,27 +234,27 @@ const RoomDetail = () => {
     const parsedStartDate = startDateIso ? new Date(`${startDateIso}T00:00:00`) : null;
 
     if (requiredFields.some((field) => !String(field || '').trim())) {
-      setMessage('Vui lòng nhập đầy đủ thông tin bắt buộc.');
+      setMessage(t('roomDetail.bookingRequired'));
       return;
     }
 
     if (!Number.isFinite(peopleCount) || peopleCount < 1) {
-      setMessage('Số người phải từ 1 trở lên.');
+      setMessage(t('roomDetail.bookingInvalidPeople'));
       return;
     }
 
     if (!Number.isFinite(vehicleCount) || vehicleCount < 0) {
-      setMessage('Số xe không hợp lệ.');
+      setMessage(t('roomDetail.bookingInvalidVehicles'));
       return;
     }
 
     if (!Number.isFinite(monthsValue) || monthsValue < 1 || monthsValue > 120) {
-      setMessage('Số tháng thuê phải từ 1 đến 120.');
+      setMessage(t('roomDetail.bookingInvalidMonths'));
       return;
     }
 
     if (!parsedStartDate || Number.isNaN(parsedStartDate.getTime())) {
-      setMessage('Ngày bắt đầu không hợp lệ.');
+      setMessage(t('roomDetail.bookingInvalidDate'));
       return;
     }
 
@@ -215,7 +262,7 @@ const RoomDetail = () => {
     today.setHours(0, 0, 0, 0);
     parsedStartDate.setHours(0, 0, 0, 0);
     if (parsedStartDate < today) {
-      setMessage('Ngày bắt đầu phải từ hôm nay trở đi.');
+      setMessage(t('roomDetail.bookingPastDate'));
       return;
     }
 
@@ -229,7 +276,7 @@ const RoomDetail = () => {
         rental_months: monthsValue,
         notes: buildBookingNotes(),
       });
-      setMessage('Đặt phòng thành công! Vui lòng chờ phê duyệt.');
+      setMessage(t('roomDetail.bookingSuccess'));
       setBookingData({
         start_date: '',
         rental_months: 1,
@@ -244,7 +291,7 @@ const RoomDetail = () => {
       setStartDateInput('');
       setShowBookingForm(false);
     } catch (error) {
-      setMessage('Đặt phòng thất bại. Vui lòng thử lại.');
+      setMessage(t('roomDetail.bookingFailed'));
     }
   };
 
@@ -268,8 +315,8 @@ const RoomDetail = () => {
 
   const handleShareRoom = async () => {
     const shareData = {
-      title: room?.title || 'Phòng trọ',
-      text: `Xem phòng này: ${room?.title || ''}`,
+      title: room?.title || t('roomDetail.title'),
+      text: `${t('roomDetail.share')}: ${room?.title || ''}`,
       url: window.location.href,
     };
 
@@ -278,11 +325,11 @@ const RoomDetail = () => {
         await navigator.share(shareData);
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareData.url);
-        setShareMessage('Đã sao chép link phòng.');
+        setShareMessage(t('roomDetail.shareSuccessMessage'));
         setTimeout(() => setShareMessage(''), 2200);
       }
     } catch (error) {
-      setShareMessage('Không thể chia sẻ lúc này.');
+      setShareMessage(t('roomDetail.shareErrorMessage'));
       setTimeout(() => setShareMessage(''), 2200);
     }
   };
@@ -293,7 +340,7 @@ const RoomDetail = () => {
       setShareMessage(successMessage);
       setTimeout(() => setShareMessage(''), 2200);
     } catch (error) {
-      setShareMessage('Không thể sao chép lúc này.');
+      setShareMessage(t('roomDetail.copyErrorMessage'));
       setTimeout(() => setShareMessage(''), 2200);
     }
   };
@@ -304,16 +351,20 @@ const RoomDetail = () => {
   const roomImages = Array.isArray(room?.images) ? room.images.map(resolveImageUrl).filter(Boolean) : [];
   const hasMultipleImages = roomImages.length > 1;
   const activeImage = roomImages[activeImageIndex];
+  const roomLatitude = Number(room?.latitude);
+  const roomLongitude = Number(room?.longitude);
+  const hasRoomCoordinates = Number.isFinite(roomLatitude) && Number.isFinite(roomLongitude);
+  const roomMapCenter = hasRoomCoordinates ? clampToVietnamBounds([roomLatitude, roomLongitude]) : null;
   const ownerPhone = String(room?.owner?.phone || '').replace(/\D/g, '');
   const facebookProfileUrl = 'https://www.facebook.com/vandat100603';
   const zaloContactUrl = ownerPhone ? `https://zalo.me/${ownerPhone}` : 'https://zalo.me';
   const zaloQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(zaloContactUrl)}`;
   const roomStatus = room?.status || 'maintenance';
-  const roomStatusLabel = roomStatus === 'available' ? 'Còn trống' : roomStatus === 'rented' ? 'Đã cho thuê' : 'Bảo trì';
+  const roomStatusLabel = roomStatus === 'available' ? t('roomDetail.statusAvailable') : roomStatus === 'rented' ? t('roomDetail.statusRented') : t('roomDetail.statusMaintenance');
   const summaryItems = [
-    { label: 'Diện tích', value: `${room?.area || 0} m²`, icon: <FiMaximize2 size={14} /> },
-    { label: 'Sức chứa', value: `${room?.capacity || 0} người`, icon: <FiUsers size={14} /> },
-    { label: 'Địa chỉ', value: [room?.address, room?.district, room?.city].filter(Boolean).join(', '), icon: <FiMapPin size={14} /> },
+    { label: t('roomDetail.areaLabel'), value: `${room?.area || 0} m²`, icon: <FiMaximize2 size={14} /> },
+    { label: t('roomDetail.capacityLabel'), value: `${room?.capacity || 0} ${t('roomDetail.person')}`, icon: <FiUsers size={14} /> },
+    { label: t('roomDetail.addressLabel'), value: [room?.address, room?.district, room?.city].filter(Boolean).join(', '), icon: <FiMapPin size={14} /> },
   ];
 
   const goToPreviousImage = useCallback(() => {
@@ -380,18 +431,18 @@ const RoomDetail = () => {
   }, [goToPreviousImage, goToNextImage, hasMultipleImages]);
 
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">{t('roomDetail.loading')}</div>;
   }
 
   if (!room) {
-    return <div className="loading">Không tìm thấy phòng trọ</div>;
+    return <div className="loading">{t('roomDetail.notFound')}</div>;
   }
 
   return (
     <div className="container">
       <div className="page-header">
         <button onClick={() => navigate(-1)} className="btn btn-primary">
-          ← Quay lại
+          {t('roomDetail.back')}
         </button>
       </div>
 
@@ -402,11 +453,11 @@ const RoomDetail = () => {
               <div className="room-detail-topline">
                 <span className={`room-status-pill ${room.status}`}>{roomStatusLabel}</span>
                 <div className="room-detail-actions-inline">
-                  <button type="button" className="btn btn-neutral btn-sm" onClick={handleShareRoom} aria-label="Chia sẻ phòng">
-                    <FiShare2 size={14} /> Chia sẻ
+                  <button type="button" className="btn btn-neutral btn-sm" onClick={handleShareRoom} aria-label={t('roomDetail.shareAria')}>
+                    <FiShare2 size={14} /> {t('roomDetail.share')}
                   </button>
-                  <button type="button" className="btn btn-neutral btn-sm" onClick={() => copyText(window.location.href, 'Đã sao chép link chia sẻ.')} aria-label="Sao chép link phòng">
-                    <FiLink size={14} /> Copy link
+                  <button type="button" className="btn btn-neutral btn-sm" onClick={() => copyText(window.location.href, t('roomDetail.shareSuccessMessage'))} aria-label={t('roomDetail.copyLinkAria')}>
+                    <FiLink size={14} /> {t('roomDetail.copyLink')}
                   </button>
                 </div>
               </div>
@@ -414,7 +465,7 @@ const RoomDetail = () => {
               <div className="room-quick-meta">
                 <span className="room-meta-item"><FiMapPin size={14} /> {room.city}</span>
                 <span className="room-meta-item"><FiMaximize2 size={14} /> {room.area} m²</span>
-                <span className="room-meta-item"><FiUsers size={14} /> {room.capacity} người</span>
+                <span className="room-meta-item"><FiUsers size={14} /> {room.capacity} {t('roomDetail.person')}</span>
               </div>
             </div>
 
@@ -430,12 +481,12 @@ const RoomDetail = () => {
                   <img
                     key={`${room.id}-${activeImageIndex}`}
                     src={activeImage}
-                    alt={`${room.title} - ảnh ${activeImageIndex + 1}`}
+                    alt={`${room.title} - ${t('roomDetail.selectImageAria', { index: activeImageIndex + 1 })}`}
                     className="room-gallery-image"
                     style={{ transformOrigin: `${magnifierPoint.x}% ${magnifierPoint.y}%` }}
                   />
                 ) : (
-                  <div className="room-gallery-empty">Chưa có ảnh cho phòng này</div>
+                  <div className="room-gallery-empty">{t('roomDetail.noImages')}</div>
                 )}
 
                 {hasMultipleImages && (
@@ -444,7 +495,7 @@ const RoomDetail = () => {
                       type="button"
                       className="room-gallery-nav prev"
                       onClick={goToPreviousImage}
-                      aria-label="Xem ảnh trước"
+                      aria-label={t('roomDetail.prevImageAria')}
                     >
                       <FiChevronLeft size={26} />
                     </button>
@@ -452,7 +503,7 @@ const RoomDetail = () => {
                       type="button"
                       className="room-gallery-nav next"
                       onClick={goToNextImage}
-                      aria-label="Xem ảnh tiếp theo"
+                      aria-label={t('roomDetail.nextImageAria')}
                     >
                       <FiChevronRight size={26} />
                     </button>
@@ -467,7 +518,7 @@ const RoomDetail = () => {
                     type="button"
                     className="room-gallery-thumbs-nav"
                     onClick={() => scrollThumbStrip(-1)}
-                    aria-label="Cuộn ảnh thu nhỏ sang trái"
+                    aria-label={t('roomDetail.scrollLeftAria')}
                   >
                     <FiChevronLeft size={20} />
                   </button>
@@ -478,7 +529,7 @@ const RoomDetail = () => {
                         type="button"
                         className={`room-thumb ${index === activeImageIndex ? 'active' : ''}`}
                         onClick={() => setActiveImageIndex(index)}
-                        aria-label={`Chọn ảnh ${index + 1}`}
+                        aria-label={t('roomDetail.selectImageAria', { index: index + 1 })}
                       >
                         <img src={image} alt={`${room.title} ${index + 1}`} />
                       </button>
@@ -488,7 +539,7 @@ const RoomDetail = () => {
                     type="button"
                     className="room-gallery-thumbs-nav"
                     onClick={() => scrollThumbStrip(1)}
-                    aria-label="Cuộn ảnh thu nhỏ sang phải"
+                    aria-label={t('roomDetail.scrollRightAria')}
                   >
                     <FiChevronRight size={20} />
                   </button>
@@ -497,20 +548,56 @@ const RoomDetail = () => {
             </div>
 
             <div className="room-detail-card room-detail-section">
-              <h3>Mô tả chi tiết</h3>
+              <h3>{t('roomDetail.detailDescription')}</h3>
               <p className="muted-text">{room.description}</p>
             </div>
 
             <div className="room-detail-card room-detail-section">
-              <h3>Địa chỉ</h3>
-              <p className="detail-row"><strong><FiMapPin size={14} /> Địa chỉ:</strong> {room.address}</p>
-              <p className="detail-row"><strong>Quận/Huyện:</strong> {room.district}</p>
-              <p className="detail-row"><strong>Thành phố:</strong> {room.city}</p>
+              <h3>{t('roomDetail.detailAddress')}</h3>
+              <p className="detail-row"><strong><FiMapPin size={14} /> {t('roomDetail.detailAddressValue')}</strong> {room.address}</p>
+              <p className="detail-row"><strong>{t('roomDetail.detailDistrict')}</strong> {room.district}</p>
+              <p className="detail-row"><strong>{t('roomDetail.detailCity')}</strong> {room.city}</p>
             </div>
+
+            {hasRoomCoordinates && roomMapCenter && (
+              <div className="room-detail-card room-detail-section room-location-section">
+                <h3>{t('roomDetail.mapLocation')}</h3>
+                <div className="room-location-map-shell">
+                  <MapContainer
+                    center={roomMapCenter}
+                    zoom={16}
+                    scrollWheelZoom
+                    className="room-location-map"
+                    maxBounds={vietnamBounds}
+                    maxBoundsViscosity={1.0}
+                    minZoom={5}
+                    maxZoom={18}
+                    worldCopyJump={false}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={roomMapCenter} icon={createMarkerIcon(room.status)}>
+                      <Popup>
+                        <div className="map-popup">
+                          <strong>{room.title}</strong>
+                          <p><FiMapPin size={12} /> {room.address}</p>
+                          <p>{room.city}</p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+                <p className="room-location-note">
+                  {t('roomDetail.coordinates')} {roomLatitude.toFixed(6)}, {roomLongitude.toFixed(6)}
+                </p>
+              </div>
+            )}
 
             {Array.isArray(room.utilities) && room.utilities.length > 0 && (
               <div className="room-detail-card room-detail-section">
-                <h3>Tiện ích</h3>
+                <h3>{t('roomDetail.utilities')}</h3>
                 <ul className="utility-list">
                   {room.utilities.map((utility, index) => (
                     <li key={index}>{utility}</li>
@@ -522,7 +609,7 @@ const RoomDetail = () => {
 
           <aside className="room-detail-sidebar">
             <div className="room-detail-card room-summary-card">
-              <div className="room-summary-price">{Number(room.price).toLocaleString('vi-VN')} đ/tháng</div>
+              <div className="room-summary-price">{Number(room.price).toLocaleString(locale)} {t('roomDetail.currencySymbol')}</div>
               <div className="room-summary-items">
                 {summaryItems.map((item) => (
                   <div key={item.label} className="room-summary-row">
@@ -534,80 +621,80 @@ const RoomDetail = () => {
             </div>
 
             <div className="room-detail-card room-contact-card">
-              <h3>Thông tin chủ nhà</h3>
-              <p className="detail-row"><strong><FiHome size={14} /> Tên:</strong> {room.owner?.name}</p>
-              <p className="detail-row"><strong>Số điện thoại:</strong> {room.owner?.phone || 'Chưa cập nhật'}</p>
+              <h3>{t('roomDetail.ownerInfo')}</h3>
+              <p className="detail-row"><strong><FiHome size={14} /> {t('roomDetail.ownerName')}</strong> {room.owner?.name}</p>
+              <p className="detail-row"><strong>{t('roomDetail.ownerPhone')}</strong> {room.owner?.phone || t('roomDetail.phoneNotUpdated')}</p>
               <div className="room-contact-actions">
                 {room.owner?.phone && (
-                  <a href={`tel:${room.owner.phone}`} className="btn btn-success btn-sm" aria-label="Gọi cho chủ nhà">
-                    <FiPhone size={14} /> Gọi ngay
+                  <a href={`tel:${room.owner.phone}`} className="btn btn-success btn-sm" aria-label={t('roomDetail.callNow')}>
+                    <FiPhone size={14} /> {t('roomDetail.callNow')}
                   </a>
                 )}
                 {room.owner?.phone && (
                   <button
                     type="button"
                     className="btn btn-neutral btn-sm"
-                    onClick={() => copyText(String(room.owner.phone), 'Đã sao chép số điện thoại.')}
-                    aria-label="Sao chép số điện thoại chủ nhà"
+                    onClick={() => copyText(String(room.owner.phone), t('roomDetail.copiedMessage'))}
+                    aria-label={t('roomDetail.copyNumber')}
                   >
-                    <FiCopy size={14} /> Copy số
+                    <FiCopy size={14} /> {t('roomDetail.copyNumber')}
                   </button>
                 )}
                 {ownerPhone && (
-                  <a href={`https://zalo.me/${ownerPhone}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" aria-label="Nhắn Zalo cho chủ nhà">
-                    <FiMessageCircle size={14} /> Nhắn Zalo
+                  <a href={`https://zalo.me/${ownerPhone}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" aria-label={t('roomDetail.sendZalo')}>
+                    <FiMessageCircle size={14} /> {t('roomDetail.sendZalo')}
                   </a>
                 )}
-                <a href="https://www.facebook.com/messages/" target="_blank" rel="noreferrer" className="btn btn-neutral btn-sm" aria-label="Mở Messenger">
-                  <FiMessageCircle size={14} /> Messenger
+                <a href="https://www.facebook.com/messages/" target="_blank" rel="noreferrer" className="btn btn-neutral btn-sm" aria-label={t('roomDetail.openMessenger')}>
+                  <FiMessageCircle size={14} /> {t('roomDetail.openMessenger')}
                 </a>
-                <a href={facebookProfileUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" aria-label="Mở Facebook cá nhân">
-                  <FiShare2 size={14} /> Facebook
+                <a href={facebookProfileUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" aria-label={t('roomDetail.openFacebook')}>
+                  <FiShare2 size={14} /> {t('roomDetail.openFacebook')}
                 </a>
               </div>
               <div className="contact-qr-wrap">
-                <p className="contact-qr-title">QR Zalo</p>
-                <img src={zaloQrUrl} alt="QR Zalo" className="contact-qr-image" />
+                <p className="contact-qr-title">{t('roomDetail.qrTitle')}</p>
+                <img src={zaloQrUrl} alt={t('roomDetail.qrTitle')} className="contact-qr-image" />
               </div>
               {shareMessage && <p className="helper-link">{shareMessage}</p>}
             </div>
 
             {room.status === 'available' && (
               <div className="room-detail-card booking-card">
-                <h3>Đặt phòng</h3>
+                <h3>{t('roomDetail.bookingTitle')}</h3>
 
                 {message && (
-                  <div className={message.includes('thành công') ? 'success-message' : 'error-message'}>
+                  <div className={message === t('roomDetail.bookingSuccess') ? 'success-message' : 'error-message'}>
                     {message}
                   </div>
                 )}
 
                 {!isLogged ? (
                   <div className="booking-guest">
-                    <p>Vui lòng đăng nhập để đặt phòng</p>
+                    <p>{t('roomDetail.bookingLoginMessage')}</p>
                     <button onClick={() => navigate('/login')} className="form-button">
-                      Đăng nhập
+                      {t('roomDetail.bookingLogin')}
                     </button>
                     <p className="helper-link">
-                      Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
+                      {t('roomDetail.bookingRegisterHint')} <Link to="/register">{t('roomDetail.bookingRegisterLink')}</Link>
                     </p>
                   </div>
                 ) : (
                   <>
                     <button type="button" className="form-button" onClick={() => setShowBookingForm(true)}>
-                      Đặt phòng ngay
+                      {t('roomDetail.bookingButton')}
                     </button>
 
                     {showBookingForm && (
                       <div className="booking-modal-overlay" onClick={() => setShowBookingForm(false)}>
                         <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
                           <div className="booking-modal-header">
-                            <h4>Thông tin đặt phòng</h4>
+                            <h4>{t('roomDetail.bookingModalTitle')}</h4>
                             <button
                               type="button"
                               className="booking-modal-close"
                               onClick={() => setShowBookingForm(false)}
-                              aria-label="Đóng form đặt phòng"
+                              aria-label={t('roomDetail.bookingModalClose')}
                             >
                               ×
                             </button>
@@ -615,7 +702,7 @@ const RoomDetail = () => {
 
                           <form onSubmit={handleBooking}>
                             <div className="form-group">
-                              <label className="form-label">Ngày bắt đầu đặt</label>
+                              <label className="form-label">{t('roomDetail.bookingStartDate')}</label>
                               <input
                                 type="text"
                                 className="form-input"
@@ -629,7 +716,7 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Số tháng thuê</label>
+                              <label className="form-label">{t('roomDetail.bookingMonths')}</label>
                               <input
                                 type="number"
                                 className="form-input"
@@ -642,18 +729,18 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Ngày kết thúc tự động</label>
+                              <label className="form-label">{t('roomDetail.bookingEndDate')}</label>
                               <input
                                 type="text"
                                 className="form-input"
                                 value={getContractEndDateDisplay()}
-                                placeholder="Tự động tính"
+                                placeholder={t('roomDetail.bookingEndDateAuto')}
                                 readOnly
                               />
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Họ tên</label>
+                              <label className="form-label">{t('roomDetail.bookingFullName')}</label>
                               <input
                                 type="text"
                                 className="form-input"
@@ -664,7 +751,7 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Số điện thoại</label>
+                              <label className="form-label">{t('roomDetail.bookingPhone')}</label>
                               <input
                                 type="tel"
                                 className="form-input"
@@ -675,7 +762,7 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Thường trú</label>
+                              <label className="form-label">{t('roomDetail.bookingAddress')}</label>
                               <input
                                 type="text"
                                 className="form-input"
@@ -686,7 +773,7 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">CCCD</label>
+                              <label className="form-label">{t('roomDetail.bookingCCCD')}</label>
                               <input
                                 type="text"
                                 className="form-input"
@@ -697,7 +784,7 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Số người</label>
+                              <label className="form-label">{t('roomDetail.bookingPeople')}</label>
                               <input
                                 type="number"
                                 className="form-input"
@@ -709,7 +796,7 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Số xe</label>
+                              <label className="form-label">{t('roomDetail.bookingVehicles')}</label>
                               <input
                                 type="number"
                                 className="form-input"
@@ -721,17 +808,17 @@ const RoomDetail = () => {
                             </div>
 
                             <div className="form-group">
-                              <label className="form-label">Ghi chú</label>
+                              <label className="form-label">{t('roomDetail.bookingNotes')}</label>
                               <textarea
                                 className="form-textarea"
                                 value={bookingData.notes}
                                 onChange={(e) => setBookingData({ ...bookingData, notes: e.target.value })}
-                                placeholder="Thêm ghi chú nếu có..."
+                                placeholder={t('roomDetail.bookingNotesPlaceholder')}
                               />
                             </div>
 
                             <button type="submit" className="form-button">
-                              Hoàn tất
+                              {t('roomDetail.bookingSubmit')}
                             </button>
                           </form>
                         </div>
@@ -748,7 +835,7 @@ const RoomDetail = () => {
                   onClick={() => navigate(`/edit-room/${room.id}`)}
                   className="btn btn-primary btn-block"
                 >
-                  Chỉnh sửa
+                  {t('roomDetail.edit')}
                 </button>
               </div>
             )}

@@ -13,7 +13,7 @@ class DatabaseSeeder extends Seeder
         // Create Admin User
         User::create([
             'name' => 'Admin User',
-            'email' => 'admin@roomrental.com',
+            'email' => 'admin@bigsix.com',
             'password' => Hash::make('password'),
             'role' => 'admin',
             'phone' => '0123456789',
@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
         // Create Saler User
         User::create([
             'name' => 'Saler User',
-            'email' => 'saler@roomrental.com',
+            'email' => 'saler@bigsix.com',
             'password' => Hash::make('password'),
             'role' => 'saler',
             'phone' => '0123456788',
@@ -31,7 +31,7 @@ class DatabaseSeeder extends Seeder
         // Create Regular User
         User::create([
             'name' => 'Regular User',
-            'email' => 'user@roomrental.com',
+            'email' => 'user@bigsix.com',
             'password' => Hash::make('password'),
             'role' => 'user',
             'phone' => '0123456787',

@@ -1,8 +1,8 @@
 {
-    "name": "laravel/room-rental",
+    "name": "laravel/bigsix",
     "type": "project",
-    "description": "Room Rental Management System",
-    "keywords": ["laravel", "framework", "room-rental"],
+    "description": "BigSix - Room Rental Management System",
+    "keywords": ["laravel", "framework", "bigsix", "room-rental"],
     "license": "MIT",
     "require": {
         "php": "^8.0",

@@ -3,5 +3,5 @@
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return ['message' => 'Room Rental API'];
+    return ['message' => 'BigSix API'];
 });

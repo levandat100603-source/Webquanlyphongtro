@@ -2,10 +2,20 @@ import api from './api';
 export const authService = {
   async register(data) {
     const response = await api.post('/register', data);
+    return response.data;
+  },
+
+  async verifyRegistration(data) {
+    const response = await api.post('/register/verify', data);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
     }
+    return response.data;
+  },
+
+  async resendRegistrationCode(data) {
+    const response = await api.post('/register/resend-code', data);
     return response.data;
   },
 
@@ -142,6 +152,38 @@ export const userService = {
 export const infoService = {
   async getDatabaseInfo() {
     const response = await api.get('/database-info');
+    return response.data;
+  },
+};
+
+export const ownerRegistrationRequestService = {
+  async create(data) {
+    const response = await api.post('/owner-registration-requests', data);
+    return response.data;
+  },
+
+  async getMyLatest() {
+    const response = await api.get('/owner-registration-requests/my-latest');
+    return response.data;
+  },
+
+  async getAll() {
+    const response = await api.get('/owner-registration-requests');
+    return response.data;
+  },
+
+  async review(id, data) {
+    const response = await api.put(`/owner-registration-requests/${id}/review`, data);
+    return response.data;
+  },
+
+  async markRejectedNoticeSeen(id) {
+    const response = await api.post(`/owner-registration-requests/${id}/seen-rejected-notice`);
+    return response.data;
+  },
+
+  async markApprovedNoticeSeen(id) {
+    const response = await api.post(`/owner-registration-requests/${id}/seen-approved-notice`);
     return response.data;
   },
 };

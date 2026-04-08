@@ -4,24 +4,25 @@ import { FiChevronLeft, FiChevronRight, FiMapPin, FiMaximize2, FiSearch, FiUsers
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { roomService, authService } from '../api/services';
+import { roomService, authService, ownerRegistrationRequestService } from '../api/services';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const sortOptions = [
-  { value: 'latest', label: 'Mới nhất' },
-  { value: 'oldest', label: 'Cũ nhất' },
-  { value: 'price-asc', label: 'Giá: Thấp → Cao' },
-  { value: 'price-desc', label: 'Giá: Cao → Thấp' },
-  { value: 'capacity-asc', label: 'Sức chứa: Ít → Nhiều' },
-  { value: 'capacity-desc', label: 'Sức chứa: Nhiều → Ít' },
+  { value: 'latest', labelKey: 'roomList.sortLatest' },
+  { value: 'oldest', labelKey: 'roomList.sortOldest' },
+  { value: 'price-asc', labelKey: 'roomList.sortPriceAsc' },
+  { value: 'price-desc', labelKey: 'roomList.sortPriceDesc' },
+  { value: 'capacity-asc', labelKey: 'roomList.sortCapacityAsc' },
+  { value: 'capacity-desc', labelKey: 'roomList.sortCapacityDesc' },
 ];
 
 const amenitiesOptions = [
-  { id: 'wifi', label: 'WiFi', icon: '📶' },
-  { id: 'ac', label: 'Điều hòa', icon: '❄️' },
-  { id: 'kitchen', label: 'Bếp', icon: '🍳' },
-  { id: 'parking', label: 'Chỗ đỗ xe', icon: '🚗' },
-  { id: 'water', label: 'Nước nóng', icon: '🚿' },
-  { id: 'security', label: 'An ninh 24/7', icon: '🔒' },
+  { id: 'wifi', labelKey: 'roomList.amenityWifi', icon: '📶' },
+  { id: 'ac', labelKey: 'roomList.amenityAc', icon: '❄️' },
+  { id: 'kitchen', labelKey: 'roomList.amenityKitchen', icon: '🍳' },
+  { id: 'parking', labelKey: 'roomList.amenityParking', icon: '🚗' },
+  { id: 'water', labelKey: 'roomList.amenityWater', icon: '🚿' },
+  { id: 'security', labelKey: 'roomList.amenitySecurity', icon: '🔒' },
 ];
 
 const initialFilters = {
@@ -41,6 +42,29 @@ const cityCoordinates = {
   'hai phong': [20.8449, 106.6881],
   'can tho': [10.0452, 105.7469],
   'nha trang': [12.2388, 109.1967],
+};
+
+const vietnamBounds = [
+  [8.3, 102.0],
+  [23.6, 110.5],
+];
+
+const clampToVietnamBounds = (coordinates) => {
+  if (!Array.isArray(coordinates) || coordinates.length !== 2) {
+    return [10.8231, 106.6297];
+  }
+
+  const latitude = Number(coordinates[0]);
+  const longitude = Number(coordinates[1]);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return [10.8231, 106.6297];
+  }
+
+  return [
+    Math.max(vietnamBounds[0][0], Math.min(vietnamBounds[1][0], latitude)),
+    Math.max(vietnamBounds[0][1], Math.min(vietnamBounds[1][1], longitude)),
+  ];
 };
 
 const normalizeCity = (city) => String(city || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -83,6 +107,8 @@ const createMarkerIcon = (status) => L.divIcon({
 });
 
 const RoomList = () => {
+  const { t, language } = useLanguage();
+  const locale = language === 'en' ? 'en-US' : 'vi-VN';
   const user = authService.getCurrentUser();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -122,6 +148,7 @@ const RoomList = () => {
   const [infiniteScroll, setInfiniteScroll] = useState(() => localStorage.getItem('roomListInfinite') === 'true');
   const [visibleCount, setVisibleCount] = useState(12);
   const [pendingRestoreState, setPendingRestoreState] = useState(null);
+  const [rejectedNotice, setRejectedNotice] = useState(null);
   const itemsPerPage = 12;
   const infiniteSentinelRef = useRef(null);
   const skipVisibleResetOnceRef = useRef(false);
@@ -178,14 +205,14 @@ const RoomList = () => {
       setLoading(true);
       setFetchError('');
       const response = await roomService.getRooms({ ...activeFilters, per_page: 50 });
-      setRooms(extractRooms(response));
+      setRooms(extractRooms(response).filter((room) => room.status === 'available'));
     } catch (error) {
       console.error('Error fetching rooms:', error);
-      setFetchError('Không tải được danh sách phòng. Vui lòng thử lại.');
+      setFetchError(t('roomList.loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchRooms(filters);
@@ -269,6 +296,47 @@ const RoomList = () => {
     const savedRecentViews = localStorage.getItem('roomRecentViews');
     setRecentViews(savedRecentViews ? JSON.parse(savedRecentViews) : []);
   }, [rooms]);
+
+  useEffect(() => {
+    const pendingNoticeRaw = localStorage.getItem('ownerRejectedNoticeToShow');
+    if (!pendingNoticeRaw) {
+      return;
+    }
+
+    try {
+      const pendingNotice = JSON.parse(pendingNoticeRaw);
+      if (pendingNotice?.requestId) {
+        setRejectedNotice({
+          type: pendingNotice.type || 'rejected',
+          requestId: pendingNotice.requestId,
+          adminNote: pendingNotice.adminNote || '',
+        });
+      } else {
+        localStorage.removeItem('ownerRejectedNoticeToShow');
+      }
+    } catch (error) {
+      localStorage.removeItem('ownerRejectedNoticeToShow');
+    }
+  }, []);
+
+  const handleCloseRejectedNotice = async () => {
+    const requestId = rejectedNotice?.requestId;
+
+    try {
+      if (requestId) {
+        if (rejectedNotice?.type === 'approved') {
+          await ownerRegistrationRequestService.markApprovedNoticeSeen(requestId);
+        } else {
+          await ownerRegistrationRequestService.markRejectedNoticeSeen(requestId);
+        }
+      }
+    } catch (markSeenError) {
+      console.error('Cannot mark rejected notice as seen:', markSeenError);
+    } finally {
+      localStorage.removeItem('ownerRejectedNoticeToShow');
+      setRejectedNotice(null);
+    }
+  };
 
   const toggleFavorite = (roomId) => {
     setFavorites((prev) => {
@@ -421,7 +489,7 @@ const RoomList = () => {
       const cachedLat = Number(cachedCoordinates[0]);
       const cachedLng = Number(cachedCoordinates[1]);
       if (Number.isFinite(cachedLat) && Number.isFinite(cachedLng)) {
-        return [cachedLat, cachedLng];
+        return clampToVietnamBounds([cachedLat, cachedLng]);
       }
     }
 
@@ -429,14 +497,14 @@ const RoomList = () => {
     const lng = Number(room.longitude ?? room.lng ?? room.lon);
 
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      return [lat, lng];
+      return clampToVietnamBounds([lat, lng]);
     }
 
     const cityKey = normalizeCity(room.city);
     const base = cityCoordinates[cityKey] || [16.0471, 108.2062];
     const jitter = ((Number(room.id) || index + 1) % 9) * 0.0021;
 
-    return [base[0] + jitter, base[1] - jitter];
+    return clampToVietnamBounds([base[0] + jitter, base[1] - jitter]);
   };
 
   const geocodeRoomAddress = async (room) => {
@@ -530,6 +598,7 @@ const RoomList = () => {
       mapPoints.reduce((sum, item) => sum + item.coordinates[1], 0) / mapPoints.length,
     ]
     : [16.0471, 108.2062];
+  const boundedMapCenter = clampToVietnamBounds(mapCenter);
 
   useEffect(() => {
     if (skipVisibleResetOnceRef.current) {
@@ -633,8 +702,8 @@ const RoomList = () => {
     return (
       <div className="container">
         <section className="listing-hero">
-          <h1 className="listing-title">Khám phá phòng trọ theo nhu cầu thực tế</h1>
-          <p className="listing-subtitle">Đang tải dữ liệu phòng trọ...</p>
+          <h1 className="listing-title">{t('roomList.heroTitle')}</h1>
+          <p className="listing-subtitle">{t('roomList.loadingRooms')}</p>
         </section>
 
         <div className="cards-grid">
@@ -654,35 +723,72 @@ const RoomList = () => {
 
   return (
     <div className="container">
+      {rejectedNotice && (
+        <div className="booking-modal-overlay" onClick={handleCloseRejectedNotice}>
+          <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="booking-modal-header">
+              <h4>{rejectedNotice.type === 'approved' ? t('auth.roleApprovedTitle') : t('auth.roleRejectedTitle')}</h4>
+              <button
+                type="button"
+                className="booking-modal-close"
+                onClick={handleCloseRejectedNotice}
+                aria-label={t('common.close')}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className={rejectedNotice.type === 'approved' ? 'success-message' : 'error-message'} style={{ marginBottom: 0 }}>
+              {rejectedNotice.type === 'approved'
+                ? t('auth.roleApprovedBody')
+                : t('auth.roleRejectedBody')}
+              {rejectedNotice.adminNote
+                ? `${rejectedNotice.type === 'approved' ? ` ${t('auth.adminNote')}` : ` ${t('auth.adminReason')}`}: ${rejectedNotice.adminNote}`
+                : ''}
+            </div>
+
+            <div className="dialog-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleCloseRejectedNotice}
+              >
+                {t('common.understood')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="listing-hero">
-        <h1 className="listing-title">Khám phá phòng trọ theo nhu cầu thực tế</h1>
+        <h1 className="listing-title">{t('roomList.heroTitle')}</h1>
         <p className="listing-subtitle">
-          Tập trung vào vị trí, mức giá và khả năng ở để bạn chọn phòng nhanh, đúng nhu cầu.
+          {t('roomList.heroSubtitle')}
         </p>
         <div className="listing-stats">
           <div className="listing-stat">
             <h4>{rooms.length}</h4>
-            <p>Phòng đang hiển thị</p>
+            <p>{t('roomList.statShowing')}</p>
           </div>
           <div className="listing-stat">
-            <h4>{averagePrice.toLocaleString('vi-VN')} đ</h4>
-            <p>Giá trung bình / tháng</p>
+            <h4>{averagePrice.toLocaleString(locale)} {t('roomList.currencyShort')}</h4>
+            <p>{t('roomList.statAvgPrice')}</p>
           </div>
           <div className="listing-stat">
             <h4>{rooms.filter((room) => room.status === 'available').length}</h4>
-            <p>Phòng còn trống</p>
+            <p>{t('roomList.statAvailable')}</p>
           </div>
         </div>
       </section>
 
       <div className={`sticky-filters ${isFilterSticky ? 'is-scrolled' : ''}`}>
         <div className="filters-toolbar">
-          <div className="view-mode-group" role="group" aria-label="Chế độ hiển thị phòng">
+          <div className="view-mode-group" role="group" aria-label={t('roomList.viewMode')}>
             <button
               type="button"
               className={`view-mode-btn ${viewMode === 'grid' ? 'active' : ''}`}
               onClick={() => setViewMode('grid')}
-              aria-label="Hiển thị dạng lưới"
+              aria-label={t('roomList.viewGrid')}
             >
               <FiGrid size={16} />
             </button>
@@ -690,7 +796,7 @@ const RoomList = () => {
               type="button"
               className={`view-mode-btn ${viewMode === 'list' ? 'active' : ''}`}
               onClick={() => setViewMode('list')}
-              aria-label="Hiển thị dạng danh sách"
+              aria-label={t('roomList.viewList')}
             >
               <FiList size={16} />
             </button>
@@ -698,40 +804,40 @@ const RoomList = () => {
               type="button"
               className={`view-mode-btn ${viewMode === 'map' ? 'active' : ''}`}
               onClick={() => setViewMode('map')}
-              aria-label="Hiển thị dạng bản đồ"
+              aria-label={t('roomList.viewMap')}
             >
               <FiMap size={16} />
             </button>
           </div>
 
           <span className="active-filters-badge">
-            Bộ lọc đang bật: {activeFilterCount}
+            {t('roomList.activeFilters')}: {activeFilterCount}
           </span>
 
           <button
             type="button"
             className={`active-filters-badge ${infiniteScroll ? 'active' : ''}`}
             onClick={() => setInfiniteScroll((prev) => !prev)}
-            aria-label={infiniteScroll ? 'Tắt cuộn vô hạn' : 'Bật cuộn vô hạn'}
+            aria-label={infiniteScroll ? t('roomList.disableInfiniteScroll') : t('roomList.enableInfiniteScroll')}
           >
-            {infiniteScroll ? 'Infinite On' : 'Infinite Off'}
+            {infiniteScroll ? t('roomList.infiniteOn') : t('roomList.infiniteOff')}
           </button>
         </div>
 
         <div className="sort-control">
           <label htmlFor="sort-select" className="sort-label">
-            Sắp xếp:
+            {t('roomList.sortBy')}
           </label>
           <select
             id="sort-select"
             className="sort-select"
             value={sortBy}
             onChange={handleSortChange}
-            aria-label="Sắp xếp phòng"
+            aria-label={t('roomList.sortAria')}
           >
             {sortOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.labelKey)}
               </option>
             ))}
           </select>
@@ -744,10 +850,10 @@ const RoomList = () => {
             setShowFavoritesOnly(!showFavoritesOnly);
             setCurrentPage(1);
           }}
-          aria-label={showFavoritesOnly ? 'Xem tất cả phòng' : 'Xem phòng yêu thích'}
+          aria-label={showFavoritesOnly ? t('roomList.viewAllRooms') : t('roomList.viewFavoriteRooms')}
         >
           <FiHeart size={16} />
-          <span>Yêu thích ({favorites.length})</span>
+          <span>{t('roomList.favorites')} ({favorites.length})</span>
         </button>
 
         <div className="filter-drawer">
@@ -758,15 +864,15 @@ const RoomList = () => {
                   type="text"
                   name="search"
                   className="form-input"
-                  placeholder="Tìm kiếm..."
-                  aria-label="Tìm theo tên phòng"
+                  placeholder={t('roomList.searchPlaceholder')}
+                  aria-label={t('roomList.searchByTitle')}
                   value={filters.search}
                   onChange={handleFilterChange}
                 />
 
                 {searchHistory.length > 0 && filters.search.trim().length === 0 && (
                   <div className="search-history">
-                    <div className="search-history-title"><FiClock size={13} /> Tìm kiếm gần đây</div>
+                    <div className="search-history-title"><FiClock size={13} /> {t('roomList.recentSearches')}</div>
                     <div className="search-history-list">
                       {searchHistory.slice(0, 4).map((keyword) => (
                         <button
@@ -774,7 +880,7 @@ const RoomList = () => {
                           type="button"
                           className="search-history-item"
                           onClick={() => handleSelectSearchHistory(keyword)}
-                          aria-label={`Tìm lại: ${keyword}`}
+                          aria-label={`${t('roomList.searchAgain')}: ${keyword}`}
                         >
                           {keyword}
                         </button>
@@ -788,8 +894,8 @@ const RoomList = () => {
                   type="text"
                   name="city"
                   className="form-input"
-                  placeholder="Thành phố"
-                  aria-label="Lọc theo thành phố"
+                  placeholder={t('roomList.city')}
+                  aria-label={t('roomList.filterByCity')}
                   value={filters.city}
                   onChange={handleFilterChange}
                 />
@@ -799,8 +905,8 @@ const RoomList = () => {
                   type="number"
                   name="min_price"
                   className="form-input"
-                  placeholder="Giá tối thiểu"
-                  aria-label="Giá tối thiểu"
+                  placeholder={t('roomList.minPrice')}
+                  aria-label={t('roomList.minPrice')}
                   value={filters.min_price}
                   onChange={handleFilterChange}
                 />
@@ -810,8 +916,8 @@ const RoomList = () => {
                   type="number"
                   name="max_price"
                   className="form-input"
-                  placeholder="Giá tối đa"
-                  aria-label="Giá tối đa"
+                  placeholder={t('roomList.maxPrice')}
+                  aria-label={t('roomList.maxPrice')}
                   value={filters.max_price}
                   onChange={handleFilterChange}
                 />
@@ -819,7 +925,7 @@ const RoomList = () => {
             </div>
 
             <div className="amenities-section">
-              <label className="amenities-label">Tiện ích:</label>
+              <label className="amenities-label">{t('roomList.amenities')}</label>
               <div className="amenities-grid">
                 {amenitiesOptions.map((amenity) => (
                   <label key={amenity.id} className="amenity-checkbox">
@@ -827,21 +933,21 @@ const RoomList = () => {
                       type="checkbox"
                       checked={selectedAmenities.includes(amenity.id)}
                       onChange={() => handleAmenityToggle(amenity.id)}
-                      aria-label={amenity.label}
+                      aria-label={t(amenity.labelKey)}
                     />
                     <span className="amenity-icon">{amenity.icon}</span>
-                    <span className="amenity-text">{amenity.label}</span>
+                    <span className="amenity-text">{t(amenity.labelKey)}</span>
                   </label>
                 ))}
               </div>
             </div>
 
             <div className="filters-actions">
-              <button type="submit" className="btn btn-primary" aria-label="Áp dụng bộ lọc tìm kiếm">
-                <FiSearch size={16} /> Tìm kiếm
+              <button type="submit" className="btn btn-primary" aria-label={t('roomList.applyFilters')}>
+                <FiSearch size={16} /> {t('roomList.search')}
               </button>
-              <button type="button" className="btn btn-neutral" onClick={handleResetFilters} aria-label="Xóa bộ lọc hiện tại">
-                <FiX size={16} /> Xóa bộ lọc
+              <button type="button" className="btn btn-neutral" onClick={handleResetFilters} aria-label={t('roomList.clearFilters')}>
+                <FiX size={16} /> {t('roomList.clearFilters')}
               </button>
             </div>
           </form>
@@ -851,7 +957,7 @@ const RoomList = () => {
       {(filters.search || filters.city || filters.min_price || filters.max_price || selectedAmenities.length > 0 || showFavoritesOnly) && (
         <div className="results-info">
           <div className="results-count">
-            {displayedRooms.length === 0 ? 'Không có kết quả' : `${sortedRooms.length} kết quả`}
+            {displayedRooms.length === 0 ? t('roomList.noResults') : `${sortedRooms.length} ${t('roomList.results')}`}
           </div>
           <div className="filter-chips">
             {filters.search && (
@@ -863,7 +969,7 @@ const RoomList = () => {
                   setFilters(newFilters);
                   fetchRooms(newFilters);
                 }}
-                aria-label={`Xóa bộ lọc tìm kiếm: ${filters.search}`}
+                aria-label={`${t('roomList.clearSearchFilter')}: ${filters.search}`}
               >
                 🔍 {filters.search}
                 <FiX size={14} />
@@ -878,7 +984,7 @@ const RoomList = () => {
                   setFilters(newFilters);
                   fetchRooms(newFilters);
                 }}
-                aria-label={`Xóa bộ lọc thành phố: ${filters.city}`}
+                aria-label={`${t('roomList.clearCityFilter')}: ${filters.city}`}
               >
                 📍 {filters.city}
                 <FiX size={14} />
@@ -893,9 +999,9 @@ const RoomList = () => {
                   setFilters(newFilters);
                   fetchRooms(newFilters);
                 }}
-                aria-label={`Xóa bộ lọc giá tối thiểu: ${filters.min_price}`}
+                aria-label={`${t('roomList.clearMinPriceFilter')}: ${filters.min_price}`}
               >
-                💰 Tối thiểu: {Number(filters.min_price).toLocaleString('vi-VN')} đ
+                💰 {t('roomList.minPricePrefix')}: {Number(filters.min_price).toLocaleString(locale)} {t('roomList.currencyShort')}
                 <FiX size={14} />
               </button>
             )}
@@ -908,9 +1014,9 @@ const RoomList = () => {
                   setFilters(newFilters);
                   fetchRooms(newFilters);
                 }}
-                aria-label={`Xóa bộ lọc giá tối đa: ${filters.max_price}`}
+                aria-label={`${t('roomList.clearMaxPriceFilter')}: ${filters.max_price}`}
               >
-                💰 Tối đa: {Number(filters.max_price).toLocaleString('vi-VN')} đ
+                💰 {t('roomList.maxPricePrefix')}: {Number(filters.max_price).toLocaleString(locale)} {t('roomList.currencyShort')}
                 <FiX size={14} />
               </button>
             )}
@@ -926,9 +1032,9 @@ const RoomList = () => {
                   type="button"
                   className="filter-chip"
                   onClick={() => handleAmenityToggle(amenity.id)}
-                  aria-label={`Xóa tiện ích: ${amenity.label}`}
+                  aria-label={`${t('roomList.clearAmenity')}: ${t(amenity.labelKey)}`}
                 >
-                  {amenity.icon} {amenity.label}
+                  {amenity.icon} {t(amenity.labelKey)}
                   <FiX size={14} />
                 </button>
               );
@@ -938,9 +1044,9 @@ const RoomList = () => {
                 type="button"
                 className="filter-chip"
                 onClick={() => setShowFavoritesOnly(false)}
-                aria-label="Tắt lọc phòng yêu thích"
+                aria-label={t('roomList.disableFavoriteFilter')}
               >
-                <FiHeart size={14} /> Yêu thích
+                <FiHeart size={14} /> {t('roomList.favorites')}
                 <FiX size={14} />
               </button>
             )}
@@ -950,7 +1056,7 @@ const RoomList = () => {
 
       {recentViews.length > 0 && (
         <div className="recent-views panel">
-          <div className="recent-views-title"><FiClock size={14} /> Đã xem gần đây</div>
+          <div className="recent-views-title"><FiClock size={14} /> {t('roomList.recentViews')}</div>
           <div className="recent-views-list">
             {recentViews.slice(0, 6).map((item) => (
               <Link key={item.id} to={`/rooms/${item.id}`} className="recent-view-item" onClick={saveListScrollPosition}>
@@ -971,25 +1077,25 @@ const RoomList = () => {
         <div className="empty-state">
           <div className="empty-state-icon">{showFavoritesOnly ? '💔' : '🔍'}</div>
           <h3 className="empty-state-title">
-            {showFavoritesOnly ? 'Chưa có phòng yêu thích' : 'Không tìm thấy phòng trọ nào'}
+            {showFavoritesOnly ? t('roomList.noFavoriteRooms') : t('roomList.noRoomsFound')}
           </h3>
           <p className="empty-state-description">
             {showFavoritesOnly 
-              ? 'Bắt đầu thêm phòng yêu thích bằng cách nhấn nút trái tim trên các phòng.'
-              : 'Hãy thử thay đổi bộ lọc hoặc tìm kiếm lại với các tiêu chí khác.'}
+              ? t('roomList.noFavoriteRoomsHint')
+              : t('roomList.noRoomsFoundHint')}
           </p>
           <div className="empty-state-actions">
             <button 
               type="button" 
               className="btn btn-primary" 
               onClick={showFavoritesOnly ? () => setShowFavoritesOnly(false) : handleResetFilters}
-              aria-label={showFavoritesOnly ? 'Xem tất cả phòng' : 'Xóa bộ lọc và tìm lại'}
+              aria-label={showFavoritesOnly ? t('roomList.viewAllRooms') : t('roomList.clearFiltersAndRetry')}
             >
-              <FiX size={16} /> {showFavoritesOnly ? 'Xem tất cả phòng' : 'Xóa bộ lọc'}
+              <FiX size={16} /> {showFavoritesOnly ? t('roomList.viewAllRooms') : t('roomList.clearFilters')}
             </button>
             {!user && (
-              <Link to="/login" className="btn btn-neutral" aria-label="Đăng nhập để xem thêm tùy chọn">
-                Đăng nhập
+              <Link to="/login" className="btn btn-neutral" aria-label={t('roomList.loginForMore')}>
+                {t('nav.login')}
               </Link>
             )}
           </div>
@@ -999,12 +1105,22 @@ const RoomList = () => {
           {viewMode === 'map' ? (
             <div className="map-view panel">
               <div className="map-legend">
-                <span><span className="map-marker map-marker-available" /> Còn trống</span>
-                <span><span className="map-marker map-marker-rented" /> Đã thuê</span>
-                <span><span className="map-marker map-marker-maintenance" /> Bảo trì</span>
+                <span><span className="map-marker map-marker-available" /> {t('roomList.statusAvailable')}</span>
+                <span><span className="map-marker map-marker-rented" /> {t('roomList.statusRented')}</span>
+                <span><span className="map-marker map-marker-maintenance" /> {t('roomList.statusMaintenance')}</span>
               </div>
               <div className="map-canvas">
-                <MapContainer center={mapCenter} zoom={12} scrollWheelZoom className="map-leaflet">
+                <MapContainer
+                  center={boundedMapCenter}
+                  zoom={12}
+                  scrollWheelZoom
+                  className="map-leaflet"
+                  maxBounds={vietnamBounds}
+                  maxBoundsViscosity={1.0}
+                  minZoom={5}
+                  maxZoom={18}
+                  worldCopyJump={false}
+                >
                   <TileLayer
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1015,16 +1131,16 @@ const RoomList = () => {
                         <div className="map-popup">
                           <strong>{room.title}</strong>
                           <p><FiMapPin size={12} /> {query}</p>
-                          <p>{Number(room.price || 0).toLocaleString('vi-VN')} đ/tháng</p>
+                          <p>{Number(room.price || 0).toLocaleString(locale)} {t('roomList.currencyShort')}/{t('roomList.perMonth')}</p>
                           <div className="action-group">
-                            <a href={`/rooms/${room.id}`} className="btn btn-primary btn-sm">Chi tiết</a>
+                            <a href={`/rooms/${room.id}`} className="btn btn-primary btn-sm">{t('roomList.detail')}</a>
                             <a
-                              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(query)}`}
+                              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${coordinates[0]},${coordinates[1]}`)}`}
                               target="_blank"
                               rel="noreferrer"
                               className="btn btn-neutral btn-sm"
                             >
-                              Chỉ đường
+                              {t('roomList.directions')}
                             </a>
                           </div>
                         </div>
@@ -1049,7 +1165,9 @@ const RoomList = () => {
                       type="button"
                       className={`card-favorite-btn ${favorites.includes(room.id) ? 'active' : ''}`}
                       onClick={() => toggleFavorite(room.id)}
-                      aria-label={favorites.includes(room.id) ? `Xóa ${room.title} khỏi yêu thích` : `Thêm ${room.title} vào yêu thích`}
+                      aria-label={favorites.includes(room.id)
+                        ? t('roomList.removeFavoriteAria', { title: room.title })
+                        : t('roomList.addFavoriteAria', { title: room.title })}
                       aria-pressed={favorites.includes(room.id)}
                     >
                       <FiHeart size={18} />
@@ -1061,7 +1179,7 @@ const RoomList = () => {
                           <button
                             type="button"
                             className="room-card-image-btn"
-                            aria-label="Xem ảnh trước"
+                            aria-label={t('roomList.prevImage')}
                             onClick={() => handleImageChange(room, -1)}
                           >
                             <FiChevronLeft size={15} />
@@ -1069,7 +1187,7 @@ const RoomList = () => {
                           <button
                             type="button"
                             className="room-card-image-btn"
-                            aria-label="Xem ảnh tiếp theo"
+                            aria-label={t('roomList.nextImage')}
                             onClick={() => handleImageChange(room, 1)}
                           >
                             <FiChevronRight size={15} />
@@ -1085,29 +1203,29 @@ const RoomList = () => {
                     <div className="room-card-head">
                       <h3 className="card-title">{room.title}</h3>
                       <span className={`badge ${room.status === 'available' ? 'badge-success' : room.status === 'rented' ? 'badge-warning' : 'badge-danger'}`}>
-                        {room.status === 'available' ? 'Còn trống' : room.status === 'rented' ? 'Đã thuê' : 'Bảo trì'}
+                        {room.status === 'available' ? t('roomList.statusAvailable') : room.status === 'rented' ? t('roomList.statusRented') : t('roomList.statusMaintenance')}
                       </span>
                     </div>
                     <p className="card-text"><FiMapPin size={14} /> {room.address}, {room.district}, {room.city}</p>
 
                     <div className="room-meta-grid">
-                      <div className="room-meta-item"><FiMaximize2 size={14} /> Diện tích: {room.area} m²</div>
-                      <div className="room-meta-item"><FiUsers size={14} /> Sức chứa: {room.capacity} người</div>
+                      <div className="room-meta-item"><FiMaximize2 size={14} /> {t('roomList.area')}: {room.area} m²</div>
+                      <div className="room-meta-item"><FiUsers size={14} /> {t('roomList.capacity')}: {room.capacity} {t('roomList.person')}</div>
                     </div>
 
                     {getRoomAmenities(room).length > 0 && (
                       <div className="room-amenities">
                         {getRoomAmenities(room).map((amenity) => (
                           <span key={amenity.id} className="amenity-tag">
-                            {amenity.icon} {amenity.label}
+                            {amenity.icon} {t(amenity.labelKey)}
                           </span>
                         ))}
                       </div>
                     )}
 
-                    <div className="card-price">{Number(room.price).toLocaleString('vi-VN')} đ/tháng</div>
-                    <Link to={`/rooms/${room.id}`} className="card-button" aria-label={`Xem chi tiết phòng ${room.title}`} onClick={saveListScrollPosition}>
-                      Xem chi tiết
+                    <div className="card-price">{Number(room.price).toLocaleString(locale)} {t('roomList.currencyShort')}/{t('roomList.perMonth')}</div>
+                    <Link to={`/rooms/${room.id}`} className="card-button" aria-label={`${t('roomList.viewRoomDetail')}: ${room.title}`} onClick={saveListScrollPosition}>
+                      {t('roomList.viewDetail')}
                     </Link>
                   </div>
                 </div>
@@ -1122,7 +1240,7 @@ const RoomList = () => {
                 className="pagination-item"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                aria-label="Trang trước"
+                aria-label={t('roomList.prevPage')}
               >
                 <FiChevronLeft size={16} />
               </button>
@@ -1144,7 +1262,7 @@ const RoomList = () => {
                     key={pageNum}
                     className={`pagination-item ${currentPage === pageNum ? 'active' : ''}`}
                     onClick={() => handlePageChange(pageNum)}
-                    aria-label={`Trang ${pageNum}`}
+                    aria-label={`${t('roomList.page')} ${pageNum}`}
                     aria-current={currentPage === pageNum ? 'page' : undefined}
                   >
                     {pageNum}
@@ -1156,13 +1274,13 @@ const RoomList = () => {
                 className="pagination-item"
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                aria-label="Trang sau"
+                aria-label={t('roomList.nextPage')}
               >
                 <FiChevronRight size={16} />
               </button>
 
               <span className="pagination-label">
-                Trang {currentPage} / {totalPages}
+                {t('roomList.page')} {currentPage} / {totalPages}
               </span>
             </div>
           )}
@@ -1173,9 +1291,9 @@ const RoomList = () => {
                 type="button"
                 className="btn btn-neutral"
                 onClick={() => setVisibleCount((prev) => Math.min(prev + itemsPerPage, sortedRooms.length))}
-                aria-label="Tải thêm phòng"
+                aria-label={t('roomList.loadMoreRooms')}
               >
-                <FiChevronsDown size={16} /> Tải thêm ({displayedRooms.length}/{sortedRooms.length})
+                <FiChevronsDown size={16} /> {t('roomList.loadMore')} ({displayedRooms.length}/{sortedRooms.length})
               </button>
             </div>
           )}

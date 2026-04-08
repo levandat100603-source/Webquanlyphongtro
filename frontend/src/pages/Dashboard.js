@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { authService, roomService, bookingService, infoService } from '../api/services';
+import { authService, roomService, bookingService, ownerRegistrationRequestService } from '../api/services';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Dashboard = () => {
+  const { t } = useLanguage();
   const user = authService.getCurrentUser();
   const [stats, setStats] = useState({
     rooms: 0,
@@ -10,7 +12,7 @@ const Dashboard = () => {
   });
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [databaseInfo, setDatabaseInfo] = useState(null);
+  const [pendingOwnerRequestCount, setPendingOwnerRequestCount] = useState(0);
 
   const extractItems = (payload) => {
     if (Array.isArray(payload)) {
@@ -40,6 +42,13 @@ const Dashboard = () => {
         const rooms = extractItems(roomsResponse);
         setStats(prev => ({ ...prev, rooms: rooms.length }));
       }
+
+      if (user.role === 'admin') {
+        const ownerRequestResponse = await ownerRegistrationRequestService.getAll();
+        const ownerRequests = extractItems(ownerRequestResponse);
+        const pendingCount = ownerRequests.filter((item) => item.status === 'pending').length;
+        setPendingOwnerRequestCount(pendingCount);
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -50,15 +59,6 @@ const Dashboard = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
-
-  // Fetch database info (for admin only)
-  useEffect(() => {
-    if (user?.role === 'admin') {
-      infoService.getDatabaseInfo()
-        .then(data => setDatabaseInfo(data))
-        .catch(error => console.error('Error fetching database info:', error));
-    }
-  }, [user?.role]);
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -73,11 +73,11 @@ const Dashboard = () => {
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'pending': return 'Chờ duyệt';
-      case 'approved': return 'Đã duyệt';
-      case 'rejected': return 'Từ chối';
-      case 'cancelled': return 'Đã hủy';
-      case 'completed': return 'Hoàn thành';
+      case 'pending': return t('dashboard.statusPending');
+      case 'approved': return t('dashboard.statusApproved');
+      case 'rejected': return t('dashboard.statusRejected');
+      case 'cancelled': return t('dashboard.statusCancelled');
+      case 'completed': return t('dashboard.statusCompleted');
       default: return status;
     }
   };
@@ -106,73 +106,65 @@ const Dashboard = () => {
   return (
     <div className="container">
       <div className="dashboard">
-        {databaseInfo && user?.role === 'admin' && (
-          <div
-            className="alert alert-info"
-            style={{
-              marginBottom: '1.5rem',
-              padding: '1rem',
-              borderRadius: '4px',
-              backgroundColor: '#e7f3ff',
-              border: '1px solid #b3d9ff',
-              color: '#004085',
-            }}
-          >
-            <strong>⚠️ Database thông tin:</strong> Đang sử dụng database <strong>{databaseInfo.database}</strong> trên host <strong>{databaseInfo.host}</strong> (Environment: <strong>{databaseInfo.environment}</strong>)
-          </div>
-        )}
         <h1 className="dashboard-title">
-          Xin chào, {user.name}!
+          {t('dashboard.greeting')}, {user.name}!
         </h1>
         <p className="dashboard-subtitle">
-          Vai trò: {user.role === 'admin' ? 'Quản trị viên' : user.role === 'saler' ? 'Chủ nhà / Môi giới' : 'Người thuê'}
+          {t('dashboard.role')}: {user.role === 'admin' ? t('roles.admin') : user.role === 'saler' ? t('roles.saler') : t('roles.user')}
         </p>
+
+        {user.role === 'admin' && pendingOwnerRequestCount > 0 && (
+          <div className="alert alert-warning" style={{ marginBottom: '1rem' }}>
+            <strong>{pendingOwnerRequestCount}</strong> {t('dashboard.pendingRequests')}{' '}
+            <Link to="/users" style={{ fontWeight: 700 }}>{t('dashboard.handleNow')}</Link>
+          </div>
+        )}
 
         <div className="stats-grid">
           {(user.role === 'saler' || user.role === 'admin') && (
             <div className="panel stat-card stat-primary">
               <h3>{stats.rooms}</h3>
-              <p className="muted-text">Phòng trọ của tôi</p>
+              <p className="muted-text">{t('dashboard.myRooms')}</p>
               <Link to="/my-rooms" className="btn btn-primary">
-                Xem tất cả
+                {t('dashboard.viewAll')}
               </Link>
             </div>
           )}
 
           <div className="panel stat-card stat-danger">
             <h3>{stats.bookings}</h3>
-            <p className="muted-text">Đặt phòng</p>
+            <p className="muted-text">{t('dashboard.bookings')}</p>
             <Link to="/bookings" className="btn btn-primary">
-              Xem tất cả
+              {t('dashboard.viewAll')}
             </Link>
           </div>
 
           {user.role === 'admin' && (
             <div className="panel stat-card stat-success">
               <h3>Admin</h3>
-              <p className="muted-text">Quản lý người dùng</p>
+              <p className="muted-text">{t('dashboard.manageUsers')}</p>
               <Link to="/users" className="btn btn-primary">
-                Quản lý
+                {t('dashboard.manage')}
               </Link>
             </div>
           )}
         </div>
 
         <div className="section-block">
-          <h2>Đặt phòng gần đây</h2>
+          <h2>{t('dashboard.recentBookings')}</h2>
           {recentBookings.length === 0 ? (
             <div className="empty-state">
-              Chưa có đặt phòng nào
+              {t('dashboard.noBookings')}
             </div>
           ) : (
             <div className="table">
               <table>
                 <thead>
                   <tr>
-                    <th>Phòng</th>
-                    <th>Người đặt</th>
-                    <th>Ngày bắt đầu</th>
-                    <th>Trạng thái</th>
+                    <th>{t('dashboard.room')}</th>
+                    <th>{t('dashboard.booker')}</th>
+                    <th>{t('dashboard.startDate')}</th>
+                    <th>{t('dashboard.status')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -195,13 +187,13 @@ const Dashboard = () => {
         </div>
 
         <div className="section-block">
-          <h2>Liên kết nhanh</h2>
+          <h2>{t('dashboard.quickLinks')}</h2>
           <div className="action-group">
-            <Link to="/rooms" className="btn btn-primary">Tìm phòng trọ</Link>
+            <Link to="/rooms" className="btn btn-primary">{t('dashboard.findRooms')}</Link>
             {(user.role === 'saler' || user.role === 'admin') && (
-              <Link to="/create-room" className="btn btn-success">Đăng phòng mới</Link>
+              <Link to="/create-room" className="btn btn-success">{t('dashboard.createRoom')}</Link>
             )}
-            <Link to="/profile" className="btn btn-warning">Hồ sơ cá nhân</Link>
+            <Link to="/profile" className="btn btn-warning">{t('dashboard.profile')}</Link>
           </div>
         </div>
       </div>

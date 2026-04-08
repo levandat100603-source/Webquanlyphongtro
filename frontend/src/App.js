@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 import UserList from './pages/UserList';
 import Profile from './pages/Profile';
 import { authService } from './api/services';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 const PrivateRoute = ({ children, roles = [] }) => {
   if (!authService.isAuthenticated()) {
@@ -40,10 +41,11 @@ const GuestOnlyRoute = ({ children }) => {
 
 function App() {
   return (
-    <Router>
-      <div className="App">
-        <Navbar />
-        <Routes>
+    <LanguageProvider>
+      <Router>
+        <div className="App">
+          <Navbar />
+          <Routes>
           <Route path="/" element={<Navigate to="/rooms" replace />} />
           <Route path="/home" element={<Home />} />
           <Route path="/login" element={
@@ -101,10 +103,11 @@ function App() {
             </PrivateRoute>
           } />
 
-          <Route path="*" element={<Navigate to="/rooms" replace />} />
-        </Routes>
-      </div>
-    </Router>
+            <Route path="*" element={<Navigate to="/rooms" replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </LanguageProvider>
   );
 }
 

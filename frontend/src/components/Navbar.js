@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FiMoon, FiSun } from 'react-icons/fi';
 import { authService } from '../api/services';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
+  const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
   const isAuthenticated = authService.isAuthenticated();
   const user = authService.getCurrentUser();
@@ -36,55 +38,67 @@ const Navbar = () => {
   return (
     <nav className="navbar">
       <div className="container navbar-container">
-        <Link to="/rooms" className="navbar-brand" onClick={handleCloseMenu}>
-          TroHub
-        </Link>
+        <div className="navbar-left">
+          <Link to="/rooms" className="navbar-brand" onClick={handleCloseMenu}>
+            BigSix
+          </Link>
+
+          <div className="navbar-quick-controls">
+            <button type="button" className="navbar-icon-button" onClick={toggleTheme} aria-label={t('nav.toggleTheme')}>
+              {theme === 'light' ? <FiMoon size={17} /> : <FiSun size={17} />}
+            </button>
+
+            <button
+              type="button"
+              className="navbar-language-toggle"
+              onClick={() => setLanguage(language === 'vi' ? 'en' : 'vi')}
+              aria-label={language === 'vi' ? t('common.languageEn') : t('common.languageVi')}
+            >
+              {language === 'vi' ? 'EN' : 'VI'}
+            </button>
+          </div>
+        </div>
 
         <button
           type="button"
           className="navbar-toggle"
-          aria-label="Mở hoặc đóng menu"
+          aria-label={t('nav.toggleMenu')}
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           {isMenuOpen ? '✕' : '☰'}
         </button>
 
         <ul className={`navbar-menu ${isMenuOpen ? 'is-open' : ''}`}>
-          <li>
-            <button type="button" className="navbar-icon-button" onClick={toggleTheme} aria-label="Đổi giao diện sáng tối">
-              {theme === 'light' ? <FiMoon size={17} /> : <FiSun size={17} />}
-            </button>
-          </li>
-          <li><Link to="/rooms" className="navbar-link" onClick={handleCloseMenu}>Phòng trọ</Link></li>
+          <li><Link to="/rooms" className="navbar-link" onClick={handleCloseMenu}>{t('nav.rooms')}</Link></li>
           
           {isAuthenticated ? (
             <>
-              <li><Link to="/dashboard" className="navbar-link" onClick={handleCloseMenu}>Dashboard</Link></li>
+              <li><Link to="/dashboard" className="navbar-link" onClick={handleCloseMenu}>{t('nav.dashboard')}</Link></li>
               
               {(user?.role === 'saler' || user?.role === 'admin') && (
                 <>
-                  <li><Link to="/my-rooms" className="navbar-link" onClick={handleCloseMenu}>Phòng của tôi</Link></li>
-                  <li><Link to="/create-room" className="navbar-link" onClick={handleCloseMenu}>Đăng phòng</Link></li>
+                  <li><Link to="/my-rooms" className="navbar-link" onClick={handleCloseMenu}>{t('nav.myRooms')}</Link></li>
+                  <li><Link to="/create-room" className="navbar-link" onClick={handleCloseMenu}>{t('nav.createRoom')}</Link></li>
                 </>
               )}
               
-              <li><Link to="/bookings" className="navbar-link" onClick={handleCloseMenu}>Đặt phòng</Link></li>
+              <li><Link to="/bookings" className="navbar-link" onClick={handleCloseMenu}>{t('nav.bookings')}</Link></li>
               
               {user?.role === 'admin' && (
-                <li><Link to="/users" className="navbar-link" onClick={handleCloseMenu}>Người dùng</Link></li>
+                <li><Link to="/users" className="navbar-link" onClick={handleCloseMenu}>{t('nav.users')}</Link></li>
               )}
               
-              <li><Link to="/profile" className="navbar-link" onClick={handleCloseMenu}>Hồ sơ ({user?.name})</Link></li>
+              <li><Link to="/profile" className="navbar-link" onClick={handleCloseMenu}>{t('nav.profile')}</Link></li>
               <li>
                 <button onClick={handleLogout} className="navbar-button">
-                  Đăng xuất
+                  {t('nav.logout')}
                 </button>
               </li>
             </>
           ) : (
             <>
-              <li><Link to="/login" className="navbar-button secondary" onClick={handleCloseMenu}>Đăng nhập</Link></li>
-              <li><Link to="/register" className="navbar-button" onClick={handleCloseMenu}>Đăng ký</Link></li>
+              <li><Link to="/login" className="navbar-button secondary" onClick={handleCloseMenu}>{t('nav.login')}</Link></li>
+              <li><Link to="/register" className="navbar-button" onClick={handleCloseMenu}>{t('nav.register')}</Link></li>
             </>
           )}
         </ul>

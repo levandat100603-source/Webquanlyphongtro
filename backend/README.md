@@ -1,4 +1,4 @@
-## Room Rental Management System - Backend
+## BigSix - Room Rental Management System - Backend
 
 ### Technology Stack
 - Laravel 10
@@ -42,9 +42,9 @@ php artisan serve
 The API will be available at `http://localhost:8000`
 
 ### Default Users
-- Admin: admin@roomrental.com / password
-- Saler: saler@roomrental.com / password
-- User: user@roomrental.com / password
+- Admin: admin@bigsix.com / password
+- Saler: saler@bigsix.com / password
+- User: user@bigsix.com / password
 
 ### API Endpoints
 
