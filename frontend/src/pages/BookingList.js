@@ -1,25 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { bookingService, authService } from '../api/services';
 
 const BookingList = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const user = authService.getCurrentUser();
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
+  const extractBookings = (payload) => {
+    if (Array.isArray(payload)) {
+      return payload;
+    }
 
-  const fetchBookings = async () => {
+    if (Array.isArray(payload?.data)) {
+      return payload.data;
+    }
+
+    if (Array.isArray(payload?.data?.data)) {
+      return payload.data.data;
+    }
+
+    return [];
+  };
+
+  const fetchBookings = useCallback(async () => {
     try {
       const response = await bookingService.getBookings();
-      setBookings(response.data || []);
+      setBookings(extractBookings(response));
     } catch (error) {
       console.error('Error fetching bookings:', error);
+      setBookings([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   const handleStatusUpdate = async (id, status) => {
     try {
@@ -65,8 +83,49 @@ const BookingList = () => {
     }
   };
 
+  const canManageBookings = user?.role === 'admin' || user?.role === 'saler';
+
+  const parseBookingRequestDetails = (notes) => {
+    const raw = String(notes || '').trim();
+    if (!raw) {
+      return [];
+    }
+
+    return raw
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const separatorIndex = line.indexOf(':');
+        if (separatorIndex < 0) {
+          return { label: 'Thong tin', value: line };
+        }
+
+        return {
+          label: line.slice(0, separatorIndex).trim(),
+          value: line.slice(separatorIndex + 1).trim(),
+        };
+      });
+  };
+
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return (
+      <div className="container">
+        <div className="page-header">
+          <h1 className="page-title">Danh sách đặt phòng</h1>
+        </div>
+        <div className="skeleton-table">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={`booking-skeleton-${index}`} className="skeleton-table-row">
+              <div className="skeleton-shimmer skeleton-line" />
+              <div className="skeleton-shimmer skeleton-line" />
+              <div className="skeleton-shimmer skeleton-line" />
+              <div className="skeleton-shimmer skeleton-line sm" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -76,8 +135,14 @@ const BookingList = () => {
       </div>
 
       {bookings.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#7f8c8d' }}>
-          Chưa có đặt phòng nào
+        <div className="empty-state">
+          <div className="empty-state-icon">📋</div>
+          <h3 className="empty-state-title">Không có đặt phòng nào</h3>
+          <p className="empty-state-description">
+            {canManageBookings 
+              ? 'Hiện chưa có yêu cầu đặt phòng. Các yêu cầu sẽ xuất hiện tại đây.'
+              : 'Bạn chưa đặt phòng nào. Hãy khám phá các phòng trọ có sẵn.'}
+          </p>
         </div>
       ) : (
         <div className="table">
@@ -107,29 +172,30 @@ const BookingList = () => {
                     </span>
                   </td>
                   <td>
-                    {booking.status === 'pending' && (user.isAdmin || user.isSaler) && (
+                    <div className="table-actions">
+                    {booking.status === 'pending' && canManageBookings && (
                       <>
                         <button 
                           onClick={() => handleStatusUpdate(booking.id, 'approved')}
-                          className="btn btn-success"
-                          style={{ marginRight: '0.5rem', padding: '0.5rem 1rem' }}
+                          className="btn btn-success btn-sm"
+                          aria-label={`Duyệt đặt phòng ${booking.id}`}
                         >
                           Duyệt
                         </button>
                         <button 
                           onClick={() => handleStatusUpdate(booking.id, 'rejected')}
-                          className="btn btn-danger"
-                          style={{ marginRight: '0.5rem', padding: '0.5rem 1rem' }}
+                          className="btn btn-danger btn-sm"
+                          aria-label={`Từ chối đặt phòng ${booking.id}`}
                         >
                           Từ chối
                         </button>
                       </>
                     )}
-                    {booking.status === 'approved' && (user.isAdmin || user.isSaler) && (
+                    {booking.status === 'approved' && canManageBookings && (
                       <button 
                         onClick={() => handleStatusUpdate(booking.id, 'completed')}
-                        className="btn btn-primary"
-                        style={{ marginRight: '0.5rem', padding: '0.5rem 1rem' }}
+                        className="btn btn-primary btn-sm"
+                        aria-label={`Hoàn thành đặt phòng ${booking.id}`}
                       >
                         Hoàn thành
                       </button>
@@ -137,17 +203,60 @@ const BookingList = () => {
                     {booking.status === 'pending' && booking.user_id === user.id && (
                       <button 
                         onClick={() => handleDelete(booking.id)}
-                        className="btn btn-danger"
-                        style={{ padding: '0.5rem 1rem' }}
+                        className="btn btn-danger btn-sm"
+                        aria-label={`Hủy đặt phòng ${booking.id}`}
                       >
                         Hủy
                       </button>
                     )}
+                    {canManageBookings && booking.notes && (
+                      <button
+                        onClick={() => setSelectedBooking(booking)}
+                        className="btn btn-neutral btn-sm"
+                        aria-label={`Xem form khách gửi cho đơn ${booking.id}`}
+                      >
+                        Xem form
+                      </button>
+                    )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selectedBooking && (
+        <div className="booking-modal-overlay" onClick={() => setSelectedBooking(null)}>
+          <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="booking-modal-header">
+              <h4>Thong tin khach gui</h4>
+              <button
+                type="button"
+                className="booking-modal-close"
+                onClick={() => setSelectedBooking(null)}
+                aria-label="Dong thong tin dat phong"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="booking-modal-meta">
+              <p><strong>Don:</strong> #{selectedBooking.id}</p>
+              <p><strong>Phong:</strong> {selectedBooking.room?.title || 'N/A'}</p>
+              <p><strong>Nguoi dat:</strong> {selectedBooking.user?.name || 'N/A'}</p>
+            </div>
+
+            <div className="booking-request-details">
+              {parseBookingRequestDetails(selectedBooking.notes).map((item, index) => (
+                <div key={`booking-detail-${index}`} className="booking-request-row">
+                  <span className="booking-request-label">{item.label}</span>
+                  <span className="booking-request-value">{item.value || '-'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

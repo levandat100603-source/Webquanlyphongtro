@@ -1,5 +1,4 @@
 import api from './api';
-import api from './axios';
 export const authService = {
   async register(data) {
     const response = await api.post('/register', data);
@@ -20,9 +19,12 @@ export const authService = {
   },
 
   async logout() {
-    await api.post('/logout');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    try {
+      await api.post('/logout');
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
   },
 
   async getMe() {
@@ -67,6 +69,12 @@ export const roomService = {
   },
 
   async updateRoom(id, data) {
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      data.append('_method', 'PUT');
+      const response = await api.post(`/rooms/${id}`, data);
+      return response.data;
+    }
+
     const response = await api.put(`/rooms/${id}`, data);
     return response.data;
   },
@@ -127,6 +135,13 @@ export const userService = {
 
   async deleteUser(id) {
     const response = await api.delete(`/users/${id}`);
+    return response.data;
+  },
+};
+
+export const infoService = {
+  async getDatabaseInfo() {
+    const response = await api.get('/database-info');
     return response.data;
   },
 };

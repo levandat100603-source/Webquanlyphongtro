@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authService, userService } from '../api/services';
 
 const Profile = () => {
-  const navigate = useNavigate();
   const currentUser = authService.getCurrentUser();
   const [formData, setFormData] = useState({
     name: currentUser.name,
@@ -51,7 +49,6 @@ const Profile = () => {
 
       const updatedUser = await userService.updateUser(currentUser.id, updateData);
       
-      // Update local storage
       localStorage.setItem('user', JSON.stringify(updatedUser));
       
       setMessage('Cập nhật hồ sơ thành công!');
@@ -131,10 +128,10 @@ const Profile = () => {
           />
         </div>
 
-        <hr style={{ margin: '2rem 0', border: 'none', borderTop: '1px solid #ddd' }} />
+        <hr className="profile-divider" />
 
-        <h3 style={{ marginBottom: '1rem', color: '#2c3e50' }}>Đổi mật khẩu</h3>
-        <p style={{ color: '#7f8c8d', marginBottom: '1rem', fontSize: '0.9rem' }}>
+        <h3 className="section-title section-title-compact">Đổi mật khẩu</h3>
+        <p className="profile-note">
           Để lại trống nếu không muốn đổi mật khẩu
         </p>
 

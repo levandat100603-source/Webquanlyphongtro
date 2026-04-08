@@ -30,6 +30,14 @@ const PrivateRoute = ({ children, roles = [] }) => {
   return children;
 };
 
+const GuestOnlyRoute = ({ children }) => {
+  if (authService.isAuthenticated()) {
+    return <Navigate to="/rooms" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
     <Router>
@@ -38,8 +46,16 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/rooms" replace />} />
           <Route path="/home" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={
+            <GuestOnlyRoute>
+              <Login />
+            </GuestOnlyRoute>
+          } />
+          <Route path="/register" element={
+            <GuestOnlyRoute>
+              <Register />
+            </GuestOnlyRoute>
+          } />
           <Route path="/rooms" element={<RoomList />} />
           <Route path="/rooms/:id" element={<RoomDetail />} />
           

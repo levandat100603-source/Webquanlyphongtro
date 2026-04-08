@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://webquanlyphongtro.onrender.com/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -8,12 +8,21 @@ const api = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: false,
 });
 
 // Add token to requests
 api.interceptors.request.use(
   (config) => {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      if (config.headers?.delete) {
+        config.headers.delete('Content-Type');
+      } else if (config.headers) {
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;

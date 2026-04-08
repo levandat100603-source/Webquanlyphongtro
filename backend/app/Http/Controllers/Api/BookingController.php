@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Room;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class BookingController extends Controller
 {
@@ -37,6 +38,7 @@ class BookingController extends Controller
             'room_id' => 'required|exists:rooms,id',
             'start_date' => 'required|date|after_or_equal:today',
             'end_date' => 'nullable|date|after:start_date',
+            'rental_months' => 'nullable|integer|min:1|max:120',
             'notes' => 'nullable|string',
         ]);
 
@@ -47,14 +49,25 @@ class BookingController extends Controller
             return response()->json(['message' => 'Room is not available'], 400);
         }
 
-        // Calculate total price (example: monthly rent)
+        $startDate = Carbon::parse($request->start_date)->startOfDay();
+        $rentalMonths = (int) $request->input('rental_months', 1);
+
+        if ($rentalMonths < 1) {
+            $rentalMonths = 1;
+        }
+
+        $effectiveEndDate = $request->filled('rental_months')
+            ? (clone $startDate)->addMonthsNoOverflow($rentalMonths)->subDay()
+            : ($request->filled('end_date') ? Carbon::parse($request->end_date)->startOfDay() : null);
+
+        // Keep the booking price as the room's base price.
         $totalPrice = $room->price;
 
         $booking = Booking::create([
             'room_id' => $request->room_id,
             'user_id' => $request->user()->id,
             'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
+            'end_date' => $effectiveEndDate ? $effectiveEndDate->toDateString() : null,
             'total_price' => $totalPrice,
             'notes' => $request->notes,
             'status' => 'pending',

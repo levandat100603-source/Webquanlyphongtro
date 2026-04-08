@@ -4,54 +4,78 @@ import { Link } from 'react-router-dom';
 const Home = () => {
   return (
     <div className="container">
-      <div style={{ textAlign: 'center', padding: '4rem 0' }}>
-        <h1 style={{ fontSize: '3rem', marginBottom: '1rem', color: '#2c3e50' }}>
-          Hệ Thống Quản Lý Phòng Trọ
+      <section className="home-hero">
+        <h1 className="home-title">
+          Nền tảng cho thuê trọ minh bạch, dễ vận hành và sẵn sàng mở rộng quy mô
         </h1>
-        <p style={{ fontSize: '1.25rem', color: '#7f8c8d', marginBottom: '2rem' }}>
-          Tìm kiếm và đăng cho thuê phòng trọ dễ dàng
+        <p className="home-subtitle">
+          Từ tìm kiếm phòng theo khu vực, giá, tiện ích cho đến quản lý booking và chủ trọ trên cùng một hệ thống, trải nghiệm mượt trên cả desktop và mobile.
         </p>
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-          <Link to="/rooms" className="btn btn-primary" style={{ fontSize: '1.1rem', padding: '1rem 2rem' }}>
-            Tìm phòng trọ
+
+        <div className="home-cta">
+          <Link to="/rooms" className="btn btn-warning">
+            Khám phá phòng trọ
           </Link>
-          <Link to="/register" className="btn btn-success" style={{ fontSize: '1.1rem', padding: '1rem 2rem' }}>
-            Đăng ký ngay
+          <Link to="/register" className="btn btn-success">
+            Bắt đầu đăng tin
+          </Link>
+          <Link to="/dashboard" className="btn btn-primary">
+            Vào bảng điều khiển
           </Link>
         </div>
-      </div>
 
-      <div style={{ marginTop: '4rem' }}>
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: '#2c3e50' }}>
-          Tính năng nổi bật
-        </h2>
+        <div className="home-stat-grid">
+          <div className="home-stat">
+            <h4>24/7</h4>
+            <p>Hệ thống hoạt động liên tục</p>
+          </div>
+          <div className="home-stat">
+            <h4>1 nền tảng</h4>
+            <p>Cho người thuê, chủ trọ, admin</p>
+          </div>
+          <div className="home-stat">
+            <h4>Realtime</h4>
+            <p>Cập nhật trạng thái booking</p>
+          </div>
+          <div className="home-stat">
+            <h4>Scalable</h4>
+            <p>Phù hợp phát triển dự án lớn</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="section-title">Tính năng trọng tâm</h2>
+        <p className="section-subtitle">
+          Tập trung vào trải nghiệm sử dụng thực tế trong ngành cho thuê trọ.
+        </p>
         <div className="cards-grid">
           <div className="card">
             <div className="card-content">
-              <h3 className="card-title">Tìm kiếm dễ dàng</h3>
+              <h3 className="card-title">Tìm phòng theo nhu cầu</h3>
               <p className="card-text">
-                Tìm kiếm phòng trọ theo khu vực, giá cả và tiện nghi một cách nhanh chóng
+                Bộ lọc theo thành phố, mức giá, tình trạng phòng giúp người thuê ra quyết định nhanh hơn.
               </p>
             </div>
           </div>
           <div className="card">
             <div className="card-content">
-              <h3 className="card-title">Đăng tin miễn phí</h3>
+              <h3 className="card-title">Quản lý tin đăng tập trung</h3>
               <p className="card-text">
-                Chủ nhà và môi giới có thể đăng tin cho thuê phòng trọ hoàn toàn miễn phí
+                Chủ trọ và môi giới theo dõi phòng đã đăng, tình trạng còn trống, lịch sử giao dịch trong một nơi.
               </p>
             </div>
           </div>
           <div className="card">
             <div className="card-content">
-              <h3 className="card-title">Quản lý hiệu quả</h3>
+              <h3 className="card-title">Dashboard vận hành rõ ràng</h3>
               <p className="card-text">
-                Hệ thống quản lý đặt phòng và người dùng một cách chuyên nghiệp
+                Theo dõi booking, người dùng, phòng trọ bằng giao diện trực quan để vận hành ở quy mô lớn.
               </p>
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

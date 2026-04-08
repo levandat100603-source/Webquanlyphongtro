@@ -18,6 +18,8 @@ class Room extends Model
         'price',
         'area',
         'capacity',
+        'latitude',
+        'longitude',
         'utilities',
         'images',
         'status',
@@ -29,6 +31,8 @@ class Room extends Model
         'images' => 'array',
         'price' => 'decimal:2',
         'area' => 'decimal:2',
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
     ];
 
     // Status: available, rented, maintenance

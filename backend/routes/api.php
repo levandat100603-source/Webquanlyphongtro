@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\InfoController;
 
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -21,6 +22,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+
+    // System Info
+    Route::get('/database-info', [InfoController::class, 'databaseInfo']);
 
     // Rooms - Saler and Admin can create
     Route::middleware('role:saler,admin')->group(function () {

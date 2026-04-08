@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { authService, roomService, bookingService } from '../api/services';
+import { authService, roomService, bookingService, infoService } from '../api/services';
 
 const Dashboard = () => {
   const user = authService.getCurrentUser();
@@ -10,23 +10,34 @@ const Dashboard = () => {
   });
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [databaseInfo, setDatabaseInfo] = useState(null);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const extractItems = (payload) => {
+    if (Array.isArray(payload)) {
+      return payload;
+    }
 
-  const fetchDashboardData = async () => {
+    if (Array.isArray(payload?.data)) {
+      return payload.data;
+    }
+
+    if (Array.isArray(payload?.data?.data)) {
+      return payload.data.data;
+    }
+
+    return [];
+  };
+
+  const fetchDashboardData = useCallback(async () => {
     try {
-      // Fetch bookings
       const bookingsResponse = await bookingService.getBookings();
-      const bookings = bookingsResponse.data || [];
+      const bookings = extractItems(bookingsResponse);
       setRecentBookings(bookings.slice(0, 5));
       setStats(prev => ({ ...prev, bookings: bookings.length }));
 
-      // Fetch rooms if saler or admin
       if (user.role === 'saler' || user.role === 'admin') {
         const roomsResponse = await roomService.getMyRooms();
-        const rooms = roomsResponse.data || [];
+        const rooms = extractItems(roomsResponse);
         setStats(prev => ({ ...prev, rooms: rooms.length }));
       }
     } catch (error) {
@@ -34,7 +45,20 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.role]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Fetch database info (for admin only)
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      infoService.getDatabaseInfo()
+        .then(data => setDatabaseInfo(data))
+        .catch(error => console.error('Error fetching database info:', error));
+    }
+  }, [user?.role]);
 
   const getStatusBadgeClass = (status) => {
     switch (status) {
@@ -59,53 +83,85 @@ const Dashboard = () => {
   };
 
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return (
+      <div className="container">
+        <div className="dashboard">
+          <div className="skeleton-shimmer skeleton-line lg" style={{ width: '260px', marginBottom: '0.8rem' }} />
+          <div className="skeleton-shimmer skeleton-line md" style={{ width: '340px' }} />
+
+          <div className="skeleton-stat-grid" style={{ marginTop: '1.2rem' }}>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div key={`dashboard-skeleton-${index}`} className="skeleton-stat">
+                <div className="skeleton-shimmer skeleton-line lg" />
+                <div className="skeleton-shimmer skeleton-line md" />
+                <div className="skeleton-shimmer skeleton-line sm" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="container">
-      <div style={{ marginTop: '2rem' }}>
-        <h1 style={{ marginBottom: '0.5rem', color: '#2c3e50' }}>
+      <div className="dashboard">
+        {databaseInfo && user?.role === 'admin' && (
+          <div
+            className="alert alert-info"
+            style={{
+              marginBottom: '1.5rem',
+              padding: '1rem',
+              borderRadius: '4px',
+              backgroundColor: '#e7f3ff',
+              border: '1px solid #b3d9ff',
+              color: '#004085',
+            }}
+          >
+            <strong>⚠️ Database thông tin:</strong> Đang sử dụng database <strong>{databaseInfo.database}</strong> trên host <strong>{databaseInfo.host}</strong> (Environment: <strong>{databaseInfo.environment}</strong>)
+          </div>
+        )}
+        <h1 className="dashboard-title">
           Xin chào, {user.name}!
         </h1>
-        <p style={{ color: '#7f8c8d', marginBottom: '2rem' }}>
+        <p className="dashboard-subtitle">
           Vai trò: {user.role === 'admin' ? 'Quản trị viên' : user.role === 'saler' ? 'Chủ nhà / Môi giới' : 'Người thuê'}
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem', marginBottom: '3rem' }}>
+        <div className="stats-grid">
           {(user.role === 'saler' || user.role === 'admin') && (
-            <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ color: '#3498db', fontSize: '2rem', marginBottom: '0.5rem' }}>{stats.rooms}</h3>
-              <p style={{ color: '#7f8c8d' }}>Phòng trọ của tôi</p>
-              <Link to="/my-rooms" className="btn btn-primary" style={{ marginTop: '1rem' }}>
+            <div className="panel stat-card stat-primary">
+              <h3>{stats.rooms}</h3>
+              <p className="muted-text">Phòng trọ của tôi</p>
+              <Link to="/my-rooms" className="btn btn-primary">
                 Xem tất cả
               </Link>
             </div>
           )}
 
-          <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-            <h3 style={{ color: '#e74c3c', fontSize: '2rem', marginBottom: '0.5rem' }}>{stats.bookings}</h3>
-            <p style={{ color: '#7f8c8d' }}>Đặt phòng</p>
-            <Link to="/bookings" className="btn btn-primary" style={{ marginTop: '1rem' }}>
+          <div className="panel stat-card stat-danger">
+            <h3>{stats.bookings}</h3>
+            <p className="muted-text">Đặt phòng</p>
+            <Link to="/bookings" className="btn btn-primary">
               Xem tất cả
             </Link>
           </div>
 
           {user.role === 'admin' && (
-            <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ color: '#27ae60', fontSize: '2rem', marginBottom: '0.5rem' }}>Admin</h3>
-              <p style={{ color: '#7f8c8d' }}>Quản lý người dùng</p>
-              <Link to="/users" className="btn btn-primary" style={{ marginTop: '1rem' }}>
+            <div className="panel stat-card stat-success">
+              <h3>Admin</h3>
+              <p className="muted-text">Quản lý người dùng</p>
+              <Link to="/users" className="btn btn-primary">
                 Quản lý
               </Link>
             </div>
           )}
         </div>
 
-        <div style={{ marginTop: '3rem' }}>
-          <h2 style={{ marginBottom: '1rem', color: '#2c3e50' }}>Đặt phòng gần đây</h2>
+        <div className="section-block">
+          <h2>Đặt phòng gần đây</h2>
           {recentBookings.length === 0 ? (
-            <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', textAlign: 'center', color: '#7f8c8d' }}>
+            <div className="empty-state">
               Chưa có đặt phòng nào
             </div>
           ) : (
@@ -138,9 +194,9 @@ const Dashboard = () => {
           )}
         </div>
 
-        <div style={{ marginTop: '3rem' }}>
-          <h2 style={{ marginBottom: '1rem', color: '#2c3e50' }}>Liên kết nhanh</h2>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+        <div className="section-block">
+          <h2>Liên kết nhanh</h2>
+          <div className="action-group">
             <Link to="/rooms" className="btn btn-primary">Tìm phòng trọ</Link>
             {(user.role === 'saler' || user.role === 'admin') && (
               <Link to="/create-room" className="btn btn-success">Đăng phòng mới</Link>

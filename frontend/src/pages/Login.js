@@ -25,7 +25,7 @@ const Login = () => {
 
     try {
       await authService.login(formData.email, formData.password);
-      navigate('/dashboard');
+      navigate('/rooms', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
     } finally {
