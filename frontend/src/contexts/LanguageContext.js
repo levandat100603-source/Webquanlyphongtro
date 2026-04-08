@@ -54,6 +54,11 @@ const translations = {
       registerFailed: 'Đăng ký thất bại. Vui lòng thử lại.',
       verifyFailed: 'Xác minh thất bại. Vui lòng kiểm tra lại mã.',
       resendFailed: 'Không thể gửi lại mã xác nhận.',
+      invalidCredentials: 'Thông tin đăng nhập không chính xác.',
+      invalidData: 'Dữ liệu chưa hợp lệ. Vui lòng kiểm tra lại.',
+      sessionExpired: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      forbidden: 'Bạn không có quyền thực hiện thao tác này.',
+      requestFailed: 'Không thể thực hiện yêu cầu. Vui lòng thử lại.',
       roleRejectedTitle: 'Yêu cầu nâng quyền đã bị từ chối',
       roleApprovedTitle: 'Chúc mừng bạn đã được duyệt',
       roleRejectedBody: 'Yêu cầu đăng ký lên chủ trọ/môi giới của bạn đã bị từ chối.',
@@ -367,6 +372,7 @@ const translations = {
       detailDistrict: 'Quận/Huyện:',
       detailCity: 'Thành phố:',
       mapLocation: 'Vị trí trên bản đồ',
+      directions: 'Chỉ đường',
       coordinates: 'Tọa độ:',
       utilities: 'Tiện ích',
       currencySymbol: 'đ/tháng',
@@ -548,6 +554,11 @@ const translations = {
       registerFailed: 'Registration failed. Please try again.',
       verifyFailed: 'Verification failed. Please check the code.',
       resendFailed: 'Unable to resend verification code.',
+      invalidCredentials: 'Login credentials are incorrect.',
+      invalidData: 'Invalid data. Please review your input.',
+      sessionExpired: 'Your session has expired. Please log in again.',
+      forbidden: 'You do not have permission to perform this action.',
+      requestFailed: 'Unable to complete the request. Please try again.',
       roleRejectedTitle: 'Role upgrade request was rejected',
       roleApprovedTitle: 'Congratulations, your request was approved',
       roleRejectedBody: 'Your landlord/broker role upgrade request was rejected.',
@@ -861,6 +872,7 @@ const translations = {
       detailDistrict: 'District:',
       detailCity: 'City:',
       mapLocation: 'Location on map',
+      directions: 'Directions',
       coordinates: 'Coordinates:',
       utilities: 'Utilities',
       currencySymbol: 'VND/month',
@@ -1019,6 +1031,30 @@ const applyReplacements = (text, replacements) => {
   return Object.keys(replacements).reduce((acc, key) => {
     return acc.replaceAll(`{${key}}`, String(replacements[key]));
   }, text);
+};
+
+const apiMessageMap = {
+  'The provided credentials are incorrect.': 'auth.invalidCredentials',
+  'The given data was invalid.': 'auth.invalidData',
+  'Unauthenticated.': 'auth.sessionExpired',
+  'Unauthorized.': 'auth.forbidden',
+  'Forbidden.': 'auth.forbidden',
+  'Request failed.': 'auth.requestFailed',
+};
+
+export const translateApiMessage = (t, message, fallbackKey) => {
+  const rawMessage = String(message || '').trim();
+
+  if (!rawMessage) {
+    return fallbackKey ? t(fallbackKey) : '';
+  }
+
+  const translatedKey = apiMessageMap[rawMessage];
+  if (translatedKey) {
+    return t(translatedKey);
+  }
+
+  return fallbackKey ? t(fallbackKey) : rawMessage;
 };
 
 export const LanguageProvider = ({ children }) => {

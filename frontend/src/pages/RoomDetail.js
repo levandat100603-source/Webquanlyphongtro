@@ -95,6 +95,19 @@ const parseFlexibleDisplayDateToIso = (displayDate) => {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
 
+const buildDirectionsUrl = (room, roomMapCenter) => {
+  if (Array.isArray(roomMapCenter) && roomMapCenter.length === 2) {
+    const latitude = Number(roomMapCenter[0]);
+    const longitude = Number(roomMapCenter[1]);
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+    }
+  }
+
+  const destination = [room?.address, room?.district, room?.city].filter(Boolean).join(', ');
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destination || room?.title || '')}`;
+};
+
 const RoomDetail = () => {
   const { t, language } = useLanguage();
   const locale = language === 'en' ? 'en-US' : 'vi-VN';
@@ -555,6 +568,15 @@ const RoomDetail = () => {
             {hasRoomCoordinates && roomMapCenter && (
               <div className="room-detail-card room-detail-section room-location-section">
                 <h3>{t('roomDetail.mapLocation')}</h3>
+                <a
+                  href={buildDirectionsUrl(room, roomMapCenter)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', width: 'fit-content', marginBottom: '0.75rem' }}
+                >
+                  {t('roomDetail.directions')}
+                </a>
                 <div className="room-location-map-shell">
                   <MapContainer
                     center={roomMapCenter}

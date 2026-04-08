@@ -221,8 +221,8 @@ const RoomList = () => {
   }, [t]);
 
   useEffect(() => {
-    fetchRooms(filters);
-  }, [fetchRooms, filters]);
+    fetchRooms(initialFilters);
+  }, [fetchRooms]);
 
   useEffect(() => {
     const saved = sessionStorage.getItem('roomListReturnState');
@@ -372,15 +372,12 @@ const RoomList = () => {
         return next.slice(0, 8);
       });
     }
-
-    fetchRooms(filters);
   };
 
   const handleResetFilters = () => {
     setFilters(initialFilters);
     setCurrentPage(1);
     setSortBy('latest');
-    fetchRooms(initialFilters);
   };
 
   const handleSortChange = (e) => {
@@ -392,7 +389,6 @@ const RoomList = () => {
     const nextFilters = { ...filters, search: keyword };
     setFilters(nextFilters);
     setCurrentPage(1);
-    fetchRooms(nextFilters);
   };
 
   const activeFilterCount = [
@@ -578,8 +574,47 @@ const RoomList = () => {
     setImageIndexes((prev) => ({ ...prev, [room.id]: nextIndex }));
   };
 
-  // Apply filtering (favorites + amenities), sorting, then pagination
+  const normalizedSearch = normalizeLocationKey(filters.search || '');
+  const normalizedCityFilter = normalizeLocationKey(filters.city || '');
+  const minPrice = Number(filters.min_price);
+  const maxPrice = Number(filters.max_price);
+  const hasMinPrice = Number.isFinite(minPrice) && minPrice > 0;
+  const hasMaxPrice = Number.isFinite(maxPrice) && maxPrice > 0;
+
+  // Apply filtering (favorites + text + city + price + amenities), sorting, then pagination
   let filteredRooms = showFavoritesOnly ? rooms.filter((room) => favorites.includes(room.id)) : rooms;
+
+  filteredRooms = filteredRooms.filter((room) => {
+    const roomText = normalizeLocationKey([
+      room.title,
+      room.address,
+      room.district,
+      room.city,
+      room.description,
+    ].filter(Boolean).join(' '));
+
+    if (normalizedSearch && !roomText.includes(normalizedSearch)) {
+      return false;
+    }
+
+    if (normalizedCityFilter) {
+      const roomCity = normalizeLocationKey(room.city || '');
+      if (!roomCity.includes(normalizedCityFilter)) {
+        return false;
+      }
+    }
+
+    const roomPrice = Number(room.price || 0);
+    if (hasMinPrice && roomPrice < minPrice) {
+      return false;
+    }
+    if (hasMaxPrice && roomPrice > maxPrice) {
+      return false;
+    }
+
+    return true;
+  });
+
   filteredRooms = filteredRooms.filter((room) => roomHasAmenities(room, selectedAmenities));
   const sortedRooms = applySorting(filteredRooms);
   const totalPages = Math.ceil(sortedRooms.length / itemsPerPage);
@@ -967,7 +1002,6 @@ const RoomList = () => {
                 onClick={() => {
                   const newFilters = { ...filters, search: '' };
                   setFilters(newFilters);
-                  fetchRooms(newFilters);
                 }}
                 aria-label={`${t('roomList.clearSearchFilter')}: ${filters.search}`}
               >
@@ -982,7 +1016,6 @@ const RoomList = () => {
                 onClick={() => {
                   const newFilters = { ...filters, city: '' };
                   setFilters(newFilters);
-                  fetchRooms(newFilters);
                 }}
                 aria-label={`${t('roomList.clearCityFilter')}: ${filters.city}`}
               >
@@ -997,7 +1030,6 @@ const RoomList = () => {
                 onClick={() => {
                   const newFilters = { ...filters, min_price: '' };
                   setFilters(newFilters);
-                  fetchRooms(newFilters);
                 }}
                 aria-label={`${t('roomList.clearMinPriceFilter')}: ${filters.min_price}`}
               >
@@ -1012,7 +1044,6 @@ const RoomList = () => {
                 onClick={() => {
                   const newFilters = { ...filters, max_price: '' };
                   setFilters(newFilters);
-                  fetchRooms(newFilters);
                 }}
                 aria-label={`${t('roomList.clearMaxPriceFilter')}: ${filters.max_price}`}
               >

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { authService, ownerRegistrationRequestService, userService } from '../api/services';
-import { useLanguage } from '../contexts/LanguageContext';
+import { translateApiMessage, useLanguage } from '../contexts/LanguageContext';
 
 const Profile = () => {
   const { t } = useLanguage();
@@ -116,7 +116,7 @@ const Profile = () => {
       };
 
       const response = await ownerRegistrationRequestService.create(payload);
-      setMessage(response.message || t('profile.requestSent'));
+      setMessage(translateApiMessage(t, response.message, 'profile.requestSent'));
       setOwnerRequest(response.request || null);
       setOwnerRequestFormOpen(false);
       setOwnerRequestForm({
@@ -127,7 +127,7 @@ const Profile = () => {
         message: '',
       });
     } catch (submitError) {
-      setError(submitError?.response?.data?.message || t('profile.requestFailed'));
+      setError(translateApiMessage(t, submitError?.response?.data?.message, 'profile.requestFailed'));
     } finally {
       setOwnerRequestLoading(false);
     }

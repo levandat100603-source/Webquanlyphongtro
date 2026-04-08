@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../api/services';
-import { useLanguage } from '../contexts/LanguageContext';
+import { translateApiMessage, useLanguage } from '../contexts/LanguageContext';
 
 const EyeIcon = ({ hidden }) => (
   <svg
@@ -24,19 +24,19 @@ const EyeIcon = ({ hidden }) => (
   </svg>
 );
 
-const getApiErrorMessage = (error, fallbackMessage) => {
+const getApiErrorMessage = (error, t, fallbackKey) => {
   const response = error?.response?.data;
 
   if (response?.message && response.message !== 'The given data was invalid.') {
-    return response.message;
+    return translateApiMessage(t, response.message, fallbackKey);
   }
 
   const validationErrors = response?.errors ? Object.values(response.errors).flat() : [];
   if (validationErrors.length > 0) {
-    return validationErrors[0];
+    return translateApiMessage(t, validationErrors[0], fallbackKey);
   }
 
-  return fallbackMessage;
+  return t(fallbackKey);
 };
 
 const Register = () => {
@@ -83,9 +83,9 @@ const Register = () => {
       setVerificationEmail(response.email || formData.email);
       setStep('verify');
       setVerificationCode('');
-      setSuccessMessage(response.message || t('auth.sendingCode'));
+      setSuccessMessage(translateApiMessage(t, response.message, 'auth.sendingCode'));
     } catch (err) {
-      setError(getApiErrorMessage(err, t('auth.registerFailed')));
+      setError(getApiErrorMessage(err, t, 'auth.registerFailed'));
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,7 @@ const Register = () => {
       });
       navigate('/dashboard');
     } catch (err) {
-      setError(getApiErrorMessage(err, t('auth.verifyFailed')));
+      setError(getApiErrorMessage(err, t, 'auth.verifyFailed'));
     } finally {
       setLoading(false);
     }
@@ -117,10 +117,10 @@ const Register = () => {
 
     try {
       const response = await authService.resendRegistrationCode({ email: verificationEmail });
-      setSuccessMessage(response.message || t('auth.resendCode'));
+      setSuccessMessage(translateApiMessage(t, response.message, 'auth.resendCode'));
       setVerificationCode('');
     } catch (err) {
-      setError(getApiErrorMessage(err, t('auth.resendFailed')));
+      setError(getApiErrorMessage(err, t, 'auth.resendFailed'));
     } finally {
       setResendLoading(false);
     }

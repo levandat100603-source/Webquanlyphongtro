@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ownerRegistrationRequestService, userService } from '../api/services';
-import { useLanguage } from '../contexts/LanguageContext';
+import { translateApiMessage, useLanguage } from '../contexts/LanguageContext';
 
 const UserList = () => {
   const { t, language } = useLanguage();
@@ -157,7 +157,7 @@ const UserList = () => {
         setNotice(t('userList.updateRoleSuccess'));
       }
     } catch (actionError) {
-      setError(actionError?.response?.data?.message || t('userList.actionFailed'));
+      setError(translateApiMessage(t, actionError?.response?.data?.message, 'userList.actionFailed'));
     } finally {
       setConfirmDialog({
         open: false,
@@ -189,7 +189,7 @@ const UserList = () => {
         note: '',
       });
     } catch (reviewError) {
-      setError(reviewError?.response?.data?.message || t('userList.reviewFailed'));
+      setError(translateApiMessage(t, reviewError?.response?.data?.message, 'userList.reviewFailed'));
     }
   };
 

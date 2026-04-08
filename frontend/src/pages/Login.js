@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService, ownerRegistrationRequestService } from '../api/services';
-import { useLanguage } from '../contexts/LanguageContext';
+import { translateApiMessage, useLanguage } from '../contexts/LanguageContext';
 
 const EyeIcon = ({ hidden }) => (
   <svg
@@ -74,7 +74,7 @@ const Login = () => {
 
       navigate('/rooms', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || t('auth.loginFailed'));
+      setError(translateApiMessage(t, err.response?.data?.message, 'auth.loginFailed'));
     } finally {
       setLoading(false);
     }

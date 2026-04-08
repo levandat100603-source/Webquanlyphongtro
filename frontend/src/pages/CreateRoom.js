@@ -4,7 +4,7 @@ import { roomService } from '../api/services';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useLanguage } from '../contexts/LanguageContext';
+import { translateApiMessage, useLanguage } from '../contexts/LanguageContext';
 
 const defaultCenter = [10.8231, 106.6297];
 const cityCoordinates = {
@@ -243,7 +243,7 @@ const CreateRoom = () => {
       if (errors && typeof errors === 'object') {
         const firstKey = Object.keys(errors)[0];
         const firstMsg = Array.isArray(errors[firstKey]) ? errors[firstKey][0] : '';
-        setError(firstMsg || t('createRoom.invalidData'));
+        setError(translateApiMessage(t, firstMsg, 'createRoom.invalidData'));
       } else if (status === 401) {
         setError(t('createRoom.sessionExpired'));
       } else if (status === 403) {
@@ -251,7 +251,7 @@ const CreateRoom = () => {
       } else if (status === 413) {
         setError(t('createRoom.imageTooLarge'));
       } else if (message) {
-        setError(message);
+        setError(translateApiMessage(t, message, 'createRoom.createFailed'));
       } else {
         setError(t('createRoom.createFailed'));
       }

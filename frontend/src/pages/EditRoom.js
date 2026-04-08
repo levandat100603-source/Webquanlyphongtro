@@ -4,7 +4,7 @@ import { roomService } from '../api/services';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useLanguage } from '../contexts/LanguageContext';
+import { translateApiMessage, useLanguage } from '../contexts/LanguageContext';
 
 const defaultCenter = [10.8231, 106.6297];
 const cityCoordinates = {
@@ -248,9 +248,9 @@ const EditRoom = () => {
       if (errors && typeof errors === 'object') {
         const firstKey = Object.keys(errors)[0];
         const firstMsg = Array.isArray(errors[firstKey]) ? errors[firstKey][0] : '';
-        setError(firstMsg || t('editRoom.invalidData'));
+        setError(translateApiMessage(t, firstMsg, 'editRoom.invalidData'));
       } else if (message) {
-        setError(message);
+        setError(translateApiMessage(t, message, 'editRoom.updateFailed'));
       } else {
         setError(t('editRoom.updateFailed'));
       }
