@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FiHome, FiMapPin, FiMaximize2, FiUsers, FiPhone, FiShare2, FiMessageCircle, FiCopy, FiLink, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
@@ -700,7 +701,7 @@ const RoomDetail = () => {
                       {t('roomDetail.bookingButton')}
                     </button>
 
-                    {showBookingForm && (
+                    {showBookingForm && typeof document !== 'undefined' && createPortal(
                       <div className="booking-modal-overlay" onClick={() => setShowBookingForm(false)}>
                         <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
                           <div className="booking-modal-header">
@@ -837,7 +838,8 @@ const RoomDetail = () => {
                             </button>
                           </form>
                         </div>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </>
                 )}
