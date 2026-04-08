@@ -106,6 +106,12 @@ const createMarkerIcon = (status) => L.divIcon({
   iconAnchor: [9, 9],
 });
 
+const getRoomMapQuery = (room) => [room.address, room.district, room.city, 'Vietnam']
+  .filter(Boolean)
+  .join(', ');
+
+const getRoomMapCacheKey = (room) => normalizeLocationKey([room.address, room.district, room.city].filter(Boolean).join(', '));
+
 const RoomList = () => {
   const { t, language } = useLanguage();
   const locale = language === 'en' ? 'en-US' : 'vi-VN';
@@ -216,7 +222,7 @@ const RoomList = () => {
 
   useEffect(() => {
     fetchRooms(filters);
-  }, [fetchRooms]);
+  }, [fetchRooms, filters]);
 
   useEffect(() => {
     const saved = sessionStorage.getItem('roomListReturnState');
@@ -476,12 +482,6 @@ const RoomList = () => {
     });
   };
 
-  const getRoomMapQuery = (room) => [room.address, room.district, room.city, 'Vietnam']
-    .filter(Boolean)
-    .join(', ');
-
-  const getRoomMapCacheKey = (room) => normalizeLocationKey([room.address, room.district, room.city].filter(Boolean).join(', '));
-
   const getRoomCoordinates = (room, index) => {
     const cacheKey = getRoomMapCacheKey(room);
     const cachedCoordinates = geocodedCoordinates[cacheKey];
@@ -507,7 +507,7 @@ const RoomList = () => {
     return clampToVietnamBounds([base[0] + jitter, base[1] - jitter]);
   };
 
-  const geocodeRoomAddress = async (room) => {
+  const geocodeRoomAddress = useCallback(async (room) => {
     const query = getRoomMapQuery(room);
     const cacheKey = getRoomMapCacheKey(room);
 
@@ -545,7 +545,7 @@ const RoomList = () => {
     } catch (error) {
       return null;
     }
-  };
+  }, []);
 
   const averagePrice = rooms.length
     ? Math.round(rooms.reduce((sum, room) => sum + Number(room.price || 0), 0) / rooms.length)
@@ -669,7 +669,7 @@ const RoomList = () => {
     return () => {
       cancelled = true;
     };
-  }, [viewMode, displayedRooms, geocodedCoordinates]);
+  }, [viewMode, displayedRooms, geocodedCoordinates, geocodeRoomAddress]);
 
   useEffect(() => {
     if (!infiniteScroll || !infiniteSentinelRef.current) {

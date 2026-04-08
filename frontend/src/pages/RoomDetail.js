@@ -62,13 +62,6 @@ const createMarkerIcon = (status) => L.divIcon({
   iconAnchor: [9, 9],
 });
 
-const formatDateDisplay = (date) => {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = String(date.getFullYear());
-  return `${day}/${month}/${year}`;
-};
-
 const formatIsoDateForDisplay = (isoDate) => {
   const text = String(isoDate || '').trim();
   const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -80,7 +73,7 @@ const formatIsoDateForDisplay = (isoDate) => {
 
 const parseFlexibleDisplayDateToIso = (displayDate) => {
   const text = String(displayDate || '').trim();
-  const match = text.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  const match = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
   if (!match) {
     return '';
   }

@@ -106,7 +106,6 @@ const resolveImageUrl = (value) => {
 
 const EditRoom = () => {
   const { t, language } = useLanguage();
-  const locale = language === 'en' ? 'en-US' : 'vi-VN';
   const { id } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -156,7 +155,7 @@ const EditRoom = () => {
     } finally {
       setFetching(false);
     }
-  }, [id]);
+  }, [id, t]);
 
   useEffect(() => {
     fetchRoom();
