@@ -12,7 +12,21 @@ class BookingController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Booking::with(['room', 'user']);
+        $query = Booking::query()
+            ->select([
+                'id',
+                'room_id',
+                'user_id',
+                'start_date',
+                'status',
+                'total_price',
+                'notes',
+                'created_at',
+            ])
+            ->with([
+                'room:id,title',
+                'user:id,name',
+            ]);
 
         // Admin can see all bookings
         if (!$request->user()->isAdmin()) {
@@ -27,7 +41,15 @@ class BookingController extends Controller
             }
         }
 
-        $bookings = $query->latest()->paginate(15);
+        $perPage = (int) $request->input('per_page', 15);
+        if ($perPage < 1) {
+            $perPage = 15;
+        }
+        if ($perPage > 50) {
+            $perPage = 50;
+        }
+
+        $bookings = $query->latest()->paginate($perPage);
 
         return response()->json($bookings);
     }

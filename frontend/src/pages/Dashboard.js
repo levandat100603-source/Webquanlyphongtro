@@ -32,21 +32,32 @@ const Dashboard = () => {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const bookingsResponse = await bookingService.getBookings();
-      const bookings = extractItems(bookingsResponse);
-      setRecentBookings(bookings.slice(0, 5));
-      setStats(prev => ({ ...prev, bookings: bookings.length }));
+      const requests = [bookingService.getBookings({ per_page: 5 })];
 
       if (user.role === 'saler' || user.role === 'admin') {
-        const roomsResponse = await roomService.getMyRooms();
-        const rooms = extractItems(roomsResponse);
-        setStats(prev => ({ ...prev, rooms: rooms.length }));
+        requests.push(roomService.getMyRooms({ per_page: 1 }));
       }
 
       if (user.role === 'admin') {
-        const ownerRequestResponse = await ownerRegistrationRequestService.getAll();
-        const ownerRequests = extractItems(ownerRequestResponse);
-        const pendingCount = ownerRequests.filter((item) => item.status === 'pending').length;
+        requests.push(ownerRegistrationRequestService.getAll({ status: 'pending', per_page: 1 }));
+      }
+
+      const responses = await Promise.all(requests);
+      const [bookingsResponse, roomsResponse, ownerRequestResponse] = responses;
+
+      const bookings = extractItems(bookingsResponse);
+      setRecentBookings(bookings);
+
+      const bookingTotal = Number(bookingsResponse?.total ?? bookings.length);
+      setStats((prev) => ({ ...prev, bookings: bookingTotal }));
+
+      if (roomsResponse) {
+        const roomsTotal = Number(roomsResponse?.total ?? extractItems(roomsResponse).length);
+        setStats((prev) => ({ ...prev, rooms: roomsTotal }));
+      }
+
+      if (ownerRequestResponse) {
+        const pendingCount = Number(ownerRequestResponse?.total ?? 0);
         setPendingOwnerRequestCount(pendingCount);
       }
     } catch (error) {

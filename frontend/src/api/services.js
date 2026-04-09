@@ -94,15 +94,15 @@ export const roomService = {
     return response.data;
   },
 
-  async getMyRooms() {
-    const response = await api.get('/my-rooms');
+  async getMyRooms(params = {}) {
+    const response = await api.get('/my-rooms', { params });
     return response.data;
   },
 };
 
 export const bookingService = {
-  async getBookings() {
-    const response = await api.get('/bookings');
+  async getBookings(params = {}) {
+    const response = await api.get('/bookings', { params });
     return response.data;
   },
 
@@ -167,8 +167,8 @@ export const ownerRegistrationRequestService = {
     return response.data;
   },
 
-  async getAll() {
-    const response = await api.get('/owner-registration-requests');
+  async getAll(params = {}) {
+    const response = await api.get('/owner-registration-requests', { params });
     return response.data;
   },
 

@@ -21,6 +21,7 @@ class RoomController extends Controller
             ->select([
                 'id',
                 'title',
+                'description',
                 'address',
                 'city',
                 'district',
@@ -32,10 +33,8 @@ class RoomController extends Controller
                 'utilities',
                 'images',
                 'status',
-                'owner_id',
-                'created_at',
             ])
-            ->with(['owner:id,name,phone']);
+            ;
 
         if ($request->filled('city')) {
             $query->where('city', $request->city);
@@ -135,7 +134,7 @@ class RoomController extends Controller
 
     public function show($id)
     {
-        $room = Room::with('owner')->findOrFail($id);
+        $room = Room::with('owner:id,name,phone')->findOrFail($id);
         return response()->json($room);
     }
 
@@ -215,6 +214,14 @@ class RoomController extends Controller
 
     public function myRooms(Request $request)
     {
+        $perPage = (int) $request->input('per_page', 12);
+        if ($perPage < 1) {
+            $perPage = 12;
+        }
+        if ($perPage > 50) {
+            $perPage = 50;
+        }
+
         $rooms = Room::query()
             ->select([
                 'id',
@@ -229,12 +236,10 @@ class RoomController extends Controller
                 'longitude',
                 'utilities',
                 'status',
-                'owner_id',
-                'created_at',
             ])
             ->where('owner_id', $request->user()->id)
             ->orderByDesc('id')
-            ->paginate(12);
+            ->paginate($perPage);
 
         return response()->json($rooms);
     }

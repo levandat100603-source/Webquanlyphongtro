@@ -64,11 +64,24 @@ class OwnerRegistrationRequestController extends Controller
         return response()->json($ownerRequest);
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $requests = OwnerRegistrationRequest::with(['user:id,name,email,phone', 'reviewer:id,name'])
-            ->latest()
-            ->paginate(20);
+        $query = OwnerRegistrationRequest::with(['user:id,name,email,phone', 'reviewer:id,name'])
+            ->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $perPage = (int) $request->input('per_page', 20);
+        if ($perPage < 1) {
+            $perPage = 20;
+        }
+        if ($perPage > 50) {
+            $perPage = 50;
+        }
+
+        $requests = $query->paginate($perPage);
 
         return response()->json($requests);
     }
