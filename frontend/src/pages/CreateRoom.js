@@ -680,7 +680,7 @@ const CreateRoom = () => {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [formData.address, formData.district, formData.city]);
+  }, [formData.district, formData.city]);
 
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files || []);
