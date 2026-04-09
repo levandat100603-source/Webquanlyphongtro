@@ -1054,7 +1054,7 @@ export const translateApiMessage = (t, message, fallbackKey) => {
     return t(translatedKey);
   }
 
-  return fallbackKey ? t(fallbackKey) : rawMessage;
+  return rawMessage || (fallbackKey ? t(fallbackKey) : '');
 };
 
 export const LanguageProvider = ({ children }) => {

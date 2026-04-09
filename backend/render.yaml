@@ -51,6 +51,14 @@ services:
         value: 587
       - key: MAIL_ENCRYPTION
         value: tls
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: BigSix
       - key: CLOUDINARY_CLOUD_NAME
         fromService:
           name: cloudinary
