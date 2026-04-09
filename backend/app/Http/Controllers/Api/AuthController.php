@@ -54,8 +54,10 @@ class AuthController extends Controller
                 }
             );
         } catch (Throwable $exception) {
+            report($exception);
+
             throw ValidationException::withMessages([
-                'email' => ['Không gửi được email xác nhận. Vui lòng kiểm tra cấu hình mail và thử lại.'],
+                'email' => ['Không gửi được email xác nhận. Vui lòng kiểm tra MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS trên Render rồi thử lại.'],
             ]);
         }
 
@@ -154,8 +156,10 @@ class AuthController extends Controller
                 }
             );
         } catch (Throwable $exception) {
+            report($exception);
+
             throw ValidationException::withMessages([
-                'email' => ['Không gửi lại được email xác nhận. Vui lòng thử lại sau.'],
+                'email' => ['Không gửi lại được email xác nhận. Vui lòng kiểm tra MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS trên Render.'],
             ]);
         }
 
