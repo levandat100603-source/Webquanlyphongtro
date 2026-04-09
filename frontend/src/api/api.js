@@ -41,7 +41,8 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      // App uses HashRouter, so force hash-based login URL to avoid Vercel 404 on hard redirect.
+      window.location.assign(`${window.location.origin}/#/login`);
     }
     return Promise.reject(error);
   }
