@@ -69,7 +69,7 @@ const UserList = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, [fetchUsers]);
+  }, []);
 
   const handleDelete = async (id) => {
     const target = users.find((item) => item.id === id);

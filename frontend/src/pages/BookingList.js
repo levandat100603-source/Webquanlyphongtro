@@ -42,7 +42,7 @@ const BookingList = () => {
 
   useEffect(() => {
     fetchBookings();
-  }, [fetchBookings]);
+  }, []);
 
   const handleStatusUpdate = async (id, status) => {
     try {
