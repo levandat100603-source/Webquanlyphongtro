@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendVerificationCodeJob;
 use App\Models\PendingRegistration;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
-use Throwable;
 
 class AuthController extends Controller
 {
@@ -46,23 +45,7 @@ class AuthController extends Controller
             ]
         );
 
-        try {
-            Mail::raw(
-                "Mã xác nhận đăng ký của bạn là: {$verificationCode}\n\nMã này có hiệu lực trong 10 phút. Nếu bạn không yêu cầu đăng ký, hãy bỏ qua email này.",
-                function ($message) use ($email) {
-                    $message->to($email)->subject('Mã xác nhận đăng ký');
-                }
-            );
-        } catch (Throwable $exception) {
-            report($exception);
-
-            $detail = trim((string) $exception->getMessage());
-            $shortDetail = $detail !== '' ? ' Chi tiết: ' . mb_substr($detail, 0, 180) : '';
-
-            throw ValidationException::withMessages([
-                'email' => ['Không gửi được email xác nhận. Vui lòng kiểm tra MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS trên Render rồi thử lại.' . $shortDetail],
-            ]);
-        }
+        SendVerificationCodeJob::dispatch($email, $verificationCode);
 
         return response()->json([
             'message' => 'Đã gửi mã xác nhận gồm 6 số đến email của bạn.',
@@ -151,23 +134,7 @@ class AuthController extends Controller
             'verification_expires_at' => now()->addMinutes(10),
         ])->save();
 
-        try {
-            Mail::raw(
-                "Mã xác nhận đăng ký của bạn là: {$verificationCode}\n\nMã này có hiệu lực trong 10 phút. Nếu bạn không yêu cầu đăng ký, hãy bỏ qua email này.",
-                function ($message) use ($email) {
-                    $message->to($email)->subject('Mã xác nhận đăng ký');
-                }
-            );
-        } catch (Throwable $exception) {
-            report($exception);
-
-            $detail = trim((string) $exception->getMessage());
-            $shortDetail = $detail !== '' ? ' Chi tiết: ' . mb_substr($detail, 0, 180) : '';
-
-            throw ValidationException::withMessages([
-                'email' => ['Không gửi lại được email xác nhận. Vui lòng kiểm tra MAIL_USERNAME, MAIL_PASSWORD, MAIL_FROM_ADDRESS trên Render.' . $shortDetail],
-            ]);
-        }
+        SendVerificationCodeJob::dispatch($email, $verificationCode);
 
         return response()->json([
             'message' => 'Đã gửi lại mã xác nhận mới.',

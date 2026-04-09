@@ -4,7 +4,7 @@ services:
     env: php
     plan: free
     buildCommand: composer install && php artisan migrate --force && php artisan cache:clear && php artisan config:clear
-    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    startCommand: bash -lc "php artisan queue:work --sleep=3 --tries=1 --timeout=90 > storage/logs/queue-worker.log 2>&1 & exec php artisan serve --host=0.0.0.0 --port=$PORT"
     healthCheckPath: /api/health
     envVars:
       - key: APP_NAME
@@ -33,12 +33,12 @@ services:
         value: file
       - key: FILESYSTEM_DRIVER
         value: local
-      - key: QUEUE_CONNECTION
-        value: sync
       - key: SESSION_DRIVER
         value: cookie
       - key: SESSION_LIFETIME
         value: 120
+      - key: QUEUE_CONNECTION
+        value: database
       - key: DB_CONNECTION
         value: mysql
       # Database variables should be added in Render dashboard with your actual credentials

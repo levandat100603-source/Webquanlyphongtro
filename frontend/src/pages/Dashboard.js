@@ -32,31 +32,22 @@ const Dashboard = () => {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const requests = [bookingService.getBookings({ per_page: 5 })];
-
-      if (user.role === 'saler' || user.role === 'admin') {
-        requests.push(roomService.getMyRooms({ per_page: 1 }));
-      }
-
-      if (user.role === 'admin') {
-        requests.push(ownerRegistrationRequestService.getAll({ status: 'pending', per_page: 1 }));
-      }
-
-      const responses = await Promise.all(requests);
-      const [bookingsResponse, roomsResponse, ownerRequestResponse] = responses;
-
+      const bookingsResponse = await bookingService.getBookings({ per_page: 5 });
       const bookings = extractItems(bookingsResponse);
       setRecentBookings(bookings);
 
       const bookingTotal = Number(bookingsResponse?.total ?? bookings.length);
       setStats((prev) => ({ ...prev, bookings: bookingTotal }));
 
-      if (roomsResponse) {
+      let roomsResponse;
+      if (user.role === 'saler' || user.role === 'admin') {
+        roomsResponse = await roomService.getMyRooms({ per_page: 1 });
         const roomsTotal = Number(roomsResponse?.total ?? extractItems(roomsResponse).length);
         setStats((prev) => ({ ...prev, rooms: roomsTotal }));
       }
 
-      if (ownerRequestResponse) {
+      if (user.role === 'admin') {
+        const ownerRequestResponse = await ownerRegistrationRequestService.getAll({ status: 'pending', per_page: 1 });
         const pendingCount = Number(ownerRequestResponse?.total ?? 0);
         setPendingOwnerRequestCount(pendingCount);
       }

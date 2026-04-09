@@ -43,10 +43,8 @@ const UserList = () => {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const [usersResponse, requestsResponse] = await Promise.all([
-        userService.getUsers(),
-        ownerRegistrationRequestService.getAll(),
-      ]);
+      const usersResponse = await userService.getUsers();
+      const requestsResponse = await ownerRegistrationRequestService.getAll();
 
       const requestsData = Array.isArray(requestsResponse?.data)
         ? requestsResponse.data

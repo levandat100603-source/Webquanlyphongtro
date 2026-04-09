@@ -37,8 +37,22 @@ api.interceptors.request.use(
 // Handle response errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const status = error.response?.status;
+    const config = error.config || {};
+
+    if (
+      config &&
+      !config.__retryOnGatewayError &&
+      (!config.method || String(config.method).toLowerCase() === 'get') &&
+      [502, 503, 504].includes(status)
+    ) {
+      config.__retryOnGatewayError = true;
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      return api.request(config);
+    }
+
+    if (status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       // App uses HashRouter, so force hash-based login URL to avoid Vercel 404 on hard redirect.
