@@ -69,7 +69,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [fetchDashboardData]);
 
   const getStatusBadgeClass = (status) => {
     switch (status) {

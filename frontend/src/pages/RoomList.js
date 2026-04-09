@@ -222,7 +222,7 @@ const RoomList = () => {
 
   useEffect(() => {
     fetchRooms(initialFilters);
-  }, []);
+  }, [fetchRooms]);
 
   useEffect(() => {
     const saved = sessionStorage.getItem('roomListReturnState');

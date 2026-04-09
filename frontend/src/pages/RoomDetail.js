@@ -150,7 +150,7 @@ const RoomDetail = () => {
 
   useEffect(() => {
     fetchRoom();
-  }, []);
+  }, [fetchRoom]);
 
   useEffect(() => {
     setActiveImageIndex(0);

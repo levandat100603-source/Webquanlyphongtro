@@ -159,7 +159,7 @@ const EditRoom = () => {
 
   useEffect(() => {
     fetchRoom();
-  }, []);
+  }, [fetchRoom]);
 
   useEffect(() => {
     return () => {
