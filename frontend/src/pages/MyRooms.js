@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FiPlus } from 'react-icons/fi';
 import { roomService } from '../api/services';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const MyRooms = () => {
@@ -10,6 +11,7 @@ const MyRooms = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [roomToDelete, setRoomToDelete] = useState(null);
 
   useEffect(() => {
     fetchMyRooms();
@@ -49,14 +51,16 @@ const MyRooms = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm(t('myRooms.confirmDelete'))) {
+  const handleDelete = async () => {
+    const id = roomToDelete;
+    if (!id) {
       return;
     }
 
     try {
       await roomService.deleteRoom(id);
-      setRooms(rooms.filter(room => room.id !== id));
+      setRooms((prev) => prev.filter((room) => room.id !== id));
+      setRoomToDelete(null);
     } catch (error) {
       alert(t('myRooms.deleteFailed'));
     }
@@ -145,7 +149,7 @@ const MyRooms = () => {
                         {t('myRooms.edit')}
                       </Link>
                       <button 
-                        onClick={() => handleDelete(room.id)}
+                        onClick={() => setRoomToDelete(room.id)}
                         className="btn btn-danger"
                         aria-label={t('myRooms.deleteAria', { title: room.title })}
                       >
@@ -160,6 +164,16 @@ const MyRooms = () => {
         </div>
         </>
       )}
+
+      <ConfirmDialog
+        open={Boolean(roomToDelete)}
+        title={t('myRooms.confirmDeleteTitle') || 'Xác nhận xóa'}
+        message={t('myRooms.confirmDelete')}
+        confirmText={t('myRooms.delete')}
+        cancelText={t('common.cancel') || 'Hủy'}
+        onConfirm={handleDelete}
+        onCancel={() => setRoomToDelete(null)}
+      />
     </div>
   );
 };

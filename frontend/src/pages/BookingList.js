@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { bookingService, authService } from '../api/services';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { useLanguage } from '../contexts/LanguageContext';
 
 const BookingList = () => {
@@ -8,6 +9,7 @@ const BookingList = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [bookingToDelete, setBookingToDelete] = useState(null);
   const user = authService.getCurrentUser();
 
   const extractBookings = (payload) => {
@@ -52,13 +54,15 @@ const BookingList = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm(t('bookingList.confirmCancel'))) {
+    const targetId = bookingToDelete ?? id;
+    if (!targetId) {
       return;
     }
 
     try {
-      await bookingService.deleteBooking(id);
-      setBookings(bookings.filter(booking => booking.id !== id));
+      await bookingService.deleteBooking(targetId);
+      setBookings((prev) => prev.filter((booking) => booking.id !== targetId));
+      setBookingToDelete(null);
     } catch (error) {
       alert(t('bookingList.deleteFailed'));
     }
@@ -205,7 +209,7 @@ const BookingList = () => {
                     )}
                     {booking.status === 'pending' && booking.user_id === user.id && (
                       <button 
-                        onClick={() => handleDelete(booking.id)}
+                        onClick={() => setBookingToDelete(booking.id)}
                         className="btn btn-danger btn-sm"
                         aria-label={t('bookingList.cancelAria', { id: booking.id })}
                       >
@@ -262,6 +266,16 @@ const BookingList = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(bookingToDelete)}
+        title={t('bookingList.cancelTitle') || 'Xác nhận hủy'}
+        message={t('bookingList.confirmCancel')}
+        confirmText={t('bookingList.cancel')}
+        cancelText={t('common.cancel')}
+        onConfirm={handleDelete}
+        onCancel={() => setBookingToDelete(null)}
+      />
     </div>
   );
 };
