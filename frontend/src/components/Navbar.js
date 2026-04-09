@@ -19,13 +19,13 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-        await services.logout(); 
+        await authService.logout(); 
     } catch (error) {
-        console.error("Lỗi khi báo server logout:", error);
+        console.error("Lỗi logout:", error);
     } finally {
-        localStorage.removeItem('token'); 
-        localStorage.removeItem('user');  
-        window.location.href = '/login'; 
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
     }
   };
 
