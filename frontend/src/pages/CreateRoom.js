@@ -422,6 +422,28 @@ const MapViewportController = ({ center, zoom }) => {
   const map = useMap();
 
   useEffect(() => {
+    const timer1 = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    const timer2 = setTimeout(() => {
+      map.invalidateSize();
+    }, 400);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map]);
+
+  useEffect(() => {
     if (!Array.isArray(center) || center.length !== 2) {
       return;
     }
@@ -882,12 +904,14 @@ const CreateRoom = () => {
               maxBounds={vietnamBounds}
               maxBoundsViscosity={1.0}
               minZoom={5}
-              maxZoom={18}
+              maxZoom={19}
               worldCopyJump={false}
             >
               <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                subdomains="abcd"
+                maxZoom={20}
               />
               <MapViewportController center={mapTargetCenter} zoom={mapTargetZoom} />
               <MapClickHandler onPick={setCoordinates} />

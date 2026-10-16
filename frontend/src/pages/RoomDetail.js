@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FiHome, FiMapPin, FiMaximize2, FiUsers, FiPhone, FiShare2, FiMessageCircle, FiCopy, FiLink, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { roomService, bookingService, authService } from '../api/services';
@@ -62,6 +62,37 @@ const createMarkerIcon = (status) => L.divIcon({
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 });
+
+const MapResizer = ({ center }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const timer1 = setTimeout(() => {
+      map.invalidateSize();
+      if (Array.isArray(center) && center.length === 2) {
+        map.setView(center, map.getZoom());
+      }
+    }, 100);
+
+    const timer2 = setTimeout(() => {
+      map.invalidateSize();
+    }, 400);
+
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [map, center]);
+
+  return null;
+};
 
 const formatIsoDateForDisplay = (isoDate) => {
   const text = String(isoDate || '').trim();
@@ -587,13 +618,16 @@ const RoomDetail = () => {
                     maxBounds={vietnamBounds}
                     maxBoundsViscosity={1.0}
                     minZoom={5}
-                    maxZoom={18}
+                    maxZoom={19}
                     worldCopyJump={false}
                   >
                     <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                      url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                      subdomains="abcd"
+                      maxZoom={20}
                     />
+                    <MapResizer center={roomMapCenter} />
                     <Marker position={roomMapCenter} icon={createMarkerIcon(room.status)}>
                       <Popup>
                         <div className="map-popup">
