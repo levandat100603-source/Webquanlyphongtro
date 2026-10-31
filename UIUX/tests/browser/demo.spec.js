@@ -1,0 +1,154 @@
+import { test, expect } from '@playwright/test';
+
+test('guest browsing, offline maps, filters, favorites, responsive pages and theme', async ({ page }) => {
+  const errors = [];
+  const external = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.route('**/*', (route) => {
+    if (!route.request().url().startsWith('http://127.0.0.1:5173') && !route.request().url().startsWith('data:')) {
+      external.push(route.request().url());
+      return route.abort();
+    }
+    return route.continue();
+  });
+  await page.goto('/');
+  await expect(page.locator('.cards-grid .card').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Hiển thị dạng bản đồ', exact: true }).click();
+  await expect(page.locator('.leaflet-container').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Hiển thị dạng lưới', exact: true }).click();
+  const favorite = page.locator('.card-favorite-btn').first();
+  await favorite.click();
+  await expect(favorite).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Đổi giao diện sáng tối' }).click();
+  await page.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Demo role' })).toBeVisible();
+  await page.getByRole('button', { name: 'Vietnamese', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('button', { name: 'Đổi giao diện sáng tối' }).click();
+  await page.locator('input[name="city"]').fill('Đà Nẵng');
+  await page.getByRole('button', { name: 'Áp dụng bộ lọc tìm kiếm', exact: true }).click();
+  await expect(page.locator('.cards-grid .card').first()).toContainText('Đà Nẵng');
+  await page.locator('.cards-grid .card a').first().click();
+  await expect(page.locator('.room-location-map')).toBeVisible();
+  await expect(page.locator('.demo-toolbar')).toContainText('Bản đồ minh họa');
+  await page.screenshot({ path: 'test-results/room-desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/#/rooms');
+  await expect(page.locator('.cards-grid .card').first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  await page.screenshot({ path: 'test-results/rooms-mobile.png', fullPage: true });
+  expect(errors).toEqual([]);
+  expect(external).toEqual([]);
+});
+
+test('switch roles, handle a booking, register an owner request and review it', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Vai trò mô phỏng' }).selectOption('user');
+  await page.goto('/#/profile');
+  await page.locator('.form-button.secondary').click();
+  await page.locator('input[name="id_number"]').fill('DEMO-BROWSER-03');
+  await page.getByRole('button', { name: 'Gửi yêu cầu xét duyệt' }).click();
+  await expect(page.locator('.success-message')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Vai trò mô phỏng' }).selectOption('saler');
+  await expect(page).toHaveURL(/dashboard/);
+  await page.goto('/#/bookings');
+  await expect(page.locator('tbody tr').filter({ hasText: 'Studio đầy đủ' })).toBeVisible();
+  await page.locator('tbody tr').filter({ hasText: 'Studio đầy đủ' }).getByRole('button', { name: /Chấp nhận|Duyệt/ }).click();
+  await expect(page.locator('tbody tr').filter({ hasText: 'Studio đầy đủ' })).toContainText(/Đã duyệt|Đã chấp nhận/);
+  await page.getByRole('combobox', { name: 'Vai trò mô phỏng' }).selectOption('admin');
+  await page.goto('/#/users');
+  const request = page.locator('tbody tr').filter({ hasText: 'DEMO-BROWSER-03' });
+  await expect(request).toBeVisible();
+  await request.getByRole('button', { name: 'Duyệt', exact: true }).click();
+  await page.locator('.booking-modal').getByRole('button', { name: 'Duyệt yêu cầu', exact: true }).click();
+  await expect(request).toContainText('Đã duyệt');
+  await page.screenshot({ path: 'test-results/admin-desktop.png', fullPage: true });
+  expect(errors).toEqual([]);
+});
+
+test('landlord can create, edit and delete a room, upload a photo and reset data', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Vai trò mô phỏng' }).selectOption('saler');
+  await page.goto('/#/create-room');
+  await page.locator('input[name="title"]').fill('Phòng kiểm thử UIUX');
+  await page.locator('textarea[name="description"]').fill('Phòng minh họa có cửa sổ và bếp nhỏ.');
+  await page.locator('input[name="address"]').fill('12 Địa Chỉ Mẫu');
+  await page.locator('input[name="district"]').fill('Hải Châu');
+  await page.locator('input[name="city"]').fill('Đà Nẵng');
+  await page.locator('input[name="price"]').fill('3000000');
+  await page.locator('input[name="area"]').fill('25');
+  await page.locator('input[name="utilities"]').fill('Wifi, Bếp, Chỗ đỗ xe');
+  // A real PNG is produced by the browser, then read and resized by the upload simulation.
+  const png = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32; const c = canvas.getContext('2d'); c.fillStyle = '#a5bbcd'; c.fillRect(0, 0, 32, 32); return canvas.toDataURL('image/png').split(',')[1]; });
+  await page.locator('input[type="file"]').setInputFiles({ name: 'room.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
+  await page.locator('form').getByRole('button', { name: 'Đăng phòng', exact: true }).click();
+  await expect(page).toHaveURL(/my-rooms/);
+  let row = page.locator('tbody tr').filter({ hasText: 'Phòng kiểm thử UIUX' });
+  await expect(row).toBeVisible();
+  await row.getByRole('link', { name: /Sửa/ }).click();
+  await page.locator('input[name="title"]').fill('Phòng UIUX đã sửa');
+  await page.locator('form').getByRole('button', { name: 'Cập nhật', exact: true }).click();
+  await expect(page).toHaveURL(/my-rooms/);
+  row = page.locator('tbody tr').filter({ hasText: 'Phòng UIUX đã sửa' });
+  await row.getByRole('button', { name: /Xóa/ }).click();
+  await page.locator('.confirm-dialog').getByRole('button', { name: /Xóa/ }).click();
+  await expect(row).toHaveCount(0);
+  await page.getByRole('button', { name: 'Đặt lại mẫu', exact: true }).click();
+  await page.getByRole('button', { name: 'Đặt lại dữ liệu', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: 'Vai trò mô phỏng' })).toHaveValue('guest');
+  expect(errors).toEqual([]);
+});
+
+test('registration verifies the local OTP and login controls remain usable', async ({ page }) => {
+  await page.goto('/#/register');
+  await page.locator('input[name="name"]').fill('Sinh viên UIUX');
+  await page.locator('input[name="email"]').fill('browser@bigsix.test');
+  await page.locator('input[name="password"]').fill('12345678');
+  await page.locator('input[name="password_confirmation"]').fill('12345678');
+  await page.getByRole('button', { name: /Đăng ký|Gửi mã/ }).click();
+  const otp = page.locator('input[inputmode="numeric"]');
+  await expect(otp).toBeVisible();
+  await otp.fill('123456');
+  await page.getByRole('button', { name: /Xác nhận|Xác minh/ }).click();
+  await expect(page).toHaveURL(/dashboard/);
+  await page.goto('/#/profile');
+  await expect(page.locator('input[name="name"]')).toHaveValue('Sinh viên UIUX');
+});
+
+test('tenant submits a booking, keeps changes after reload, cancels and updates profile', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Vai trò mô phỏng' }).selectOption('user');
+  await page.goto('/#/rooms/2');
+  await page.getByRole('button', { name: 'Đặt phòng ngay', exact: true }).click();
+  const form = page.locator('.booking-modal form');
+  const date = new Date(); date.setDate(date.getDate() + 8);
+  await form.locator('input[name="start_date"]').fill(`${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`);
+  await form.locator('input[name="rental_months"]').fill('3');
+  await form.locator('input[name="full_name"]').fill('Nguyễn An');
+  await form.locator('input[name="booking_phone"]').fill('0900000003');
+  await form.locator('input[name="permanent_address"]').fill('Địa chỉ mẫu, Đà Nẵng');
+  await form.locator('input[name="cccd"]').fill('DEMO000003');
+  await form.locator('input[name="number_of_people"]').fill('2');
+  await form.getByRole('button', { name: 'Hoàn tất', exact: true }).click();
+  await expect(form).toHaveCount(0);
+  await page.goto('/#/bookings');
+  await page.reload();
+  const row = page.locator('tbody tr').filter({ hasText: 'Phòng có gác gần Đại học Bách khoa' });
+  await expect(row).toBeVisible();
+  await row.getByRole('button', { name: /Hủy/ }).click();
+  await page.locator('.confirm-dialog').getByRole('button', { name: /Hủy/ }).last().click();
+  await expect(row).toHaveCount(0);
+  await page.goto('/#/profile');
+  await page.locator('input[name="name"]').fill('Nguyễn An UIUX');
+  await page.locator('form > button[type="submit"]').click();
+  await expect(page.locator('.success-message')).toBeVisible();
+  await page.reload();
+  await expect(page.locator('input[name="name"]')).toHaveValue('Nguyễn An UIUX');
+  expect(errors).toEqual([]);
+});

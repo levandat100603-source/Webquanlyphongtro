@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+  <rect width="220" height="220" rx="16" fill="#f0f6ff"/>
+  <g fill="none" stroke="#0b63f3" stroke-width="8"><rect x="24" y="24" width="48" height="48" rx="5"/><rect x="148" y="24" width="48" height="48" rx="5"/><rect x="24" y="148" width="48" height="48" rx="5"/></g>
+  <g fill="#0b63f3"><rect x="38" y="38" width="20" height="20"/><rect x="162" y="38" width="20" height="20"/><rect x="38" y="162" width="20" height="20"/></g>
+  <text x="110" y="119" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="bold" fill="#10243f">DEMO</text>
+  <text x="127" y="172" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#5f6f85">Khong phai ma QR that</text>
+</svg>

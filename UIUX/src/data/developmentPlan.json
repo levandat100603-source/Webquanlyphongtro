@@ -1,0 +1,98 @@
+{
+  "timeline": [
+    [
+      "GĐ1",
+      "17–23/10/2026",
+      "Tìm hiểu đề tài và xác định yêu cầu",
+      "Lê Văn Đạt",
+      "Phạm vi, đối tượng sử dụng và danh sách chức năng dự kiến"
+    ],
+    [
+      "GĐ2",
+      "24–30/10/2026",
+      "Phân tích và thiết kế",
+      "Lê Văn Đạt",
+      "Use Case, đặc tả, thiết kế CSDL và phác thảo giao diện"
+    ],
+    [
+      "GĐ3",
+      "31/10–06/11/2026",
+      "Tạo dự án, tài khoản và xác minh email",
+      "Lê Văn Đạt",
+      "React/Laravel kết nối MySQL; đăng ký OTP, đăng nhập, hồ sơ và phân quyền theo vai trò"
+    ],
+    [
+      "GĐ4",
+      "07–13/11/2026",
+      "Lập trình quản lý tin phòng",
+      "Lê Văn Đạt",
+      "Tin phòng, ảnh, tọa độ, bản đồ, danh sách và chi tiết phòng"
+    ],
+    [
+      "GĐ5",
+      "14–20/11/2026",
+      "Lập trình tìm kiếm và đặt phòng",
+      "Lê Văn Đạt",
+      "Lọc phòng; gửi, xem, duyệt và hủy đơn"
+    ],
+    [
+      "GĐ6",
+      "21–27/11/2026",
+      "Lập trình quản trị và kết nối các trang",
+      "Lê Văn Đạt",
+      "Duyệt chủ trọ, quản lý tài khoản, dashboard, ngôn ngữ và giao diện sáng/tối"
+    ],
+    [
+      "GĐ7",
+      "28/11–04/12/2026",
+      "Chạy thử và sửa lỗi",
+      "Lê Văn Đạt",
+      "Ghi kết quả chạy thử, kiểm tra dữ liệu, các giới hạn hiện có và lỗi gặp phải"
+    ],
+    [
+      "GĐ8",
+      "05–07/12/2026",
+      "Hoàn thiện báo cáo và chuẩn bị trình bày",
+      "Lê Văn Đạt",
+      "Báo cáo, dữ liệu minh họa, hướng dẫn cài đặt và bài trình bày"
+    ]
+  ],
+  "members": [
+    [
+      "Lê Văn Đạt",
+      "Phân tích",
+      "Tìm hiểu bài toán và viết yêu cầu",
+      "Đối chiếu với mục tiêu đề tài"
+    ],
+    [
+      "Lê Văn Đạt",
+      "Thiết kế",
+      "Vẽ Use Case, ERD và phác thảo giao diện",
+      "Kiểm tra quan hệ và các bước sử dụng"
+    ],
+    [
+      "Lê Văn Đạt",
+      "Lập trình máy chủ",
+      "API Laravel, CSDL, đăng nhập và phân quyền",
+      "Thử dữ liệu và tài khoản theo từng vai trò"
+    ],
+    [
+      "Lê Văn Đạt",
+      "Lập trình giao diện",
+      "Tạo trang React và kết nối API",
+      "Thử nhập liệu và hiển thị trên điện thoại"
+    ],
+    [
+      "Lê Văn Đạt",
+      "Kiểm thử",
+      "Chuẩn bị dữ liệu, chạy thử và sửa lỗi",
+      "Ghi kết quả và kiểm tra lại sau khi sửa"
+    ],
+    [
+      "Lê Văn Đạt",
+      "Báo cáo",
+      "Viết báo cáo, hướng dẫn cài đặt và chuẩn bị trình bày",
+      "Đọc lại tài liệu và chạy thử các thao tác minh họa"
+    ]
+  ]
+}
